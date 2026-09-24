@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "scripts": {
+    "setup": "bash tools/setup.sh",
+    "run": "node tools/serve.mjs --watch"
+  },
+  "ports": {
+    "preview": 3000
+  }
+}
