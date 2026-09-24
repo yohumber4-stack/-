@@ -7,6 +7,7 @@ export interface Settings {
   lang: Lang;
   quality: number;
   renderScale: number;
+  brightness: number;
   fov: number;
   sensitivity: number;
   invertY: boolean;
@@ -28,7 +29,7 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  lang: 'ru', quality: 2, renderScale: 1, fov: 75, sensitivity: 1, invertY: false, headBob: true, showFps: false,
+  lang: 'ru', quality: 2, renderScale: 1, brightness: 1, fov: 75, sensitivity: 1, invertY: false, headBob: true, showFps: false,
   master: 0.8, sfx: 0.9, ambient: 0.8, radio: 0.7, music: 0.6, engine: 0.9, auto: true, hints: true, dayLength: 24, carHud: true, difficulty: 1, mirrors: true,
   bindings: {},
 };
@@ -294,11 +295,12 @@ export class UI {
     this.settingsReturn = from;
     this.state = 'settings';
     const pct = (v: number) => Math.round(v * 100) + '%';
-    const fmts: Record<string, (v: number) => string> = { renderScale: pct, master: pct, sfx: pct, ambient: pct, radio: pct, music: pct, engine: pct, fov: (v) => v + '°', sensitivity: (v) => v.toFixed(2), dayLength: (v) => v + ' ' + tr('мин', 'min') };
+    const fmts: Record<string, (v: number) => string> = { renderScale: pct, brightness: pct, master: pct, sfx: pct, ambient: pct, radio: pct, music: pct, engine: pct, fov: (v) => v + '°', sensitivity: (v) => v.toFixed(2), dayLength: (v) => v + ' ' + tr('мин', 'min') };
     const tabs: Record<string, string> = {
       graphics: `
         <div class="row"><label>${tr('Качество графики', 'Graphics quality')}</label><div class="v">${this.seg('quality', [[0, tr('Низкое', 'Low')], [1, tr('Среднее', 'Medium')], [2, tr('Высокое', 'High')], [3, tr('Ультра', 'Ultra')]])}</div></div>
         <div class="row"><label>${tr('Масштаб рендера', 'Render scale')}</label><div class="v">${this.range('renderScale', 0.5, 1, 0.05, fmts.renderScale)}</div></div>
+        <div class="row"><label>${tr('Яркость', 'Brightness')}</label><div class="v">${this.range('brightness', 0.6, 1.5, 0.05, fmts.brightness)}</div></div>
         <div class="row"><label>${tr('Поле зрения', 'Field of view')}</label><div class="v">${this.range('fov', 60, 100, 1, fmts.fov)}</div></div>
         <div class="row"><label>${tr('Зеркала заднего вида', 'Rear-view mirrors')}</label><div class="v">${this.seg('mirrors', [[true, tr('Вкл', 'On')], [false, tr('Выкл', 'Off')]])}</div></div>
         <div class="row"><label>${tr('Покачивание камеры', 'Head bob')}</label><div class="v">${this.seg('headBob', [[true, tr('Вкл', 'On')], [false, tr('Выкл', 'Off')]])}</div></div>

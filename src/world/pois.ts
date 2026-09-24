@@ -117,7 +117,7 @@ function station(k: Kit, m: Materials, r: RNG) {
 function garage(k: Kit, m: Materials, r: RNG, home: boolean) {
   const W = home ? 7.6 : r.pick([7, 8]), D = home ? 8.4 : r.pick([7, 8]), H = 3.3;
   const wood = m.woodDark;
-  k.floor(m.concrete, 0, 0, W + 0.2, D + 0.2, 0.08, 0.16, 3);
+  k.floor(home || r.chance(0.6) ? m.dirt : m.concrete, 0, 0, W + 0.2, D + 0.2, 0.08, 0.16, 3);
   const gateW = 3.4;
   const gateMat = r.chance(0.7) || home ? m.corrugatedRust : m.woodDark;
   k.wall(wood, -W / 2, D / 2, W / 2, D / 2, H, 0.14, [{ at: W / 2, w: gateW, y0: 0, y1: 2.7, kind: 'gate', double: true, doorMat: gateMat }], 0.08, 2);

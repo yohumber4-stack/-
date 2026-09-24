@@ -1,6 +1,6 @@
 // Homestead garage walkthrough: door, battery, hood, install, fuel, start, drive out.
 export default async function (page, h) {
-  await page.goto('file://' + process.cwd() + '/dist/index.html?play=1&auto=1&seed=1337&pr=0.75', { waitUntil: 'commit', timeout: 240000 });
+  await page.goto('file://' + process.cwd() + '/dist/index.html?play=1&auto=1&seed=1337&pr=0.75' + (process.env.Q || ''), { waitUntil: 'commit', timeout: 240000 });
   await page.waitForFunction(() => window.__ready, null, { timeout: 240000 });
   await page.waitForFunction(() => window.__frames >= 4, null, { timeout: 240000 });
   await page.evaluate(() => {

@@ -130,6 +130,51 @@ function jerrycan(m: Materials, s: ItemState, small = false) {
   return g;
 }
 
+/** Moulded HDPE water canister: grip arch, screw cap, vent, side ribs and a sticker. Fits 0.26×0.34×0.18. */
+function waterCanister(m: Materials, s: ItemState) {
+  const plastic = m.flat(s.color ?? '#7d9a8c', 0.58);
+  const dark = m.flat('#2c3430', 0.5);
+  const body = new RoundedBoxGeometry(0.26, 0.27, 0.18, 4, 0.04);
+  body.translate(0, -0.035, 0);
+  const g = group(mesh(body, plastic));
+  const shoulder = new RoundedBoxGeometry(0.22, 0.06, 0.15, 3, 0.025);
+  shoulder.translate(0, 0.1, 0);
+  g.add(mesh(shoulder, plastic));
+  // carry handle moulded into the top
+  const arch = tube([new THREE.Vector3(-0.1, 0.11, 0), new THREE.Vector3(-0.085, 0.16, 0), new THREE.Vector3(-0.02, 0.165, 0), new THREE.Vector3(0.035, 0.16, 0), new THREE.Vector3(0.045, 0.12, 0)], () => 0.014, 8);
+  g.add(mesh(arch, plastic));
+  // screw cap with knurled rim + small vent plug
+  const neck = new THREE.CylinderGeometry(0.022, 0.024, 0.03, 16);
+  neck.translate(0.085, 0.14, 0);
+  g.add(mesh(neck, plastic));
+  const cap = new THREE.CylinderGeometry(0.027, 0.027, 0.026, 20);
+  cap.translate(0.085, 0.16, 0);
+  g.add(mesh(cap, m.flat('#c8b24a', 0.45)));
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2;
+    const k = new THREE.BoxGeometry(0.004, 0.024, 0.004);
+    k.translate(0.085 + Math.cos(a) * 0.027, 0.16, Math.sin(a) * 0.027);
+    g.add(mesh(k, m.flat('#b09c3e', 0.5)));
+  }
+  const vent = new THREE.CylinderGeometry(0.009, 0.009, 0.012, 10);
+  vent.translate(-0.095, 0.135, 0.045);
+  g.add(mesh(vent, dark));
+  // stiffening ribs on both broad faces
+  for (const sz of [-1, 1]) for (const y of [-0.12, -0.06, 0.0]) {
+    const rib = new RoundedBoxGeometry(0.2, 0.012, 0.008, 1, 0.003);
+    rib.translate(0, y, sz * 0.09);
+    g.add(mesh(rib, plastic));
+  }
+  // canLabel repeats its artwork twice (for cans); a flat sticker shows only the left copy
+  const sticker = new THREE.PlaneGeometry(0.1, 0.1);
+  const suv = sticker.attributes.uv as THREE.BufferAttribute;
+  for (let i = 0; i < suv.count; i++) suv.setX(i, suv.getX(i) * 0.5);
+  const lbl = new THREE.Mesh(sticker, new THREE.MeshStandardMaterial({ map: canLabel('water_can', '#e9e4d2', '#2a6aa8', 'ВОДА', '10 Л', true), roughness: 0.8 }));
+  lbl.position.set(0, 0.035, 0.0925);
+  g.add(lbl);
+  return g;
+}
+
 function oilCan(m: Materials) {
   const body = new RoundedBoxGeometry(0.18, 0.26, 0.09, 2, 0.012);
   const mat = new THREE.MeshStandardMaterial({ map: canLabel('oil', '#1f3a78', '#e0b020', 'MOTOR', 'OIL · 4 L'), roughness: 0.45, metalness: 0.4 });
@@ -402,7 +447,7 @@ export const ITEMS: Record<string, ItemDef> = {
   jerrycan_s: { id: 'jerrycan_s', name: ['Канистра 10 л', 'Jerry can 10 L'], mass: 2.5, shape: 'box', half: [0.066, 0.19, 0.135], storable: false, material: 'metal', liquid: { cap: 10, kinds: ['petrol', 'diesel', 'water', 'oil'], rate: 1.1 }, build: (m, s) => jerrycan(m, s, true) },
   oilcan: { id: 'oilcan', name: ['Моторное масло', 'Motor oil'], mass: 1, shape: 'box', half: [0.09, 0.13, 0.045], storable: true, material: 'metal', liquid: { cap: 4, kinds: ['oil'], rate: 0.45 }, build: (m) => oilCan(m) },
   water: { id: 'water', name: ['Бутылка воды', 'Water bottle'], mass: 0.3, shape: 'cyl', half: [0.042, 0.15, 0.042], storable: true, material: 'plastic', liquid: { cap: 1.5, kinds: ['water'], rate: 0.35, drinkable: true }, build: (m, s) => bottle(m, s) },
-  canister: { id: 'canister', name: ['Бидон для воды', 'Water canister'], mass: 1.2, shape: 'box', half: [0.13, 0.17, 0.09], storable: false, material: 'plastic', liquid: { cap: 10, kinds: ['water', 'petrol', 'diesel', 'oil'], rate: 1.0, drinkable: true }, build: (m, s) => group(mesh(new RoundedBoxGeometry(0.26, 0.34, 0.18, 3, 0.04), m.flat(s.color ?? '#3a6ab0', 0.5))) },
+  canister: { id: 'canister', name: ['Бидон для воды', 'Water canister'], mass: 1.2, shape: 'box', half: [0.13, 0.17, 0.09], storable: false, material: 'plastic', liquid: { cap: 10, kinds: ['water', 'petrol', 'diesel', 'oil'], rate: 1.0, drinkable: true }, build: (m, s) => waterCanister(m, s) },
   stew: { id: 'stew', name: ['Тушёнка', 'Canned stew'], mass: 0.4, shape: 'cyl', half: [0.042, 0.055, 0.042], storable: true, material: 'metal', food: { hunger: 34, thirst: -4, time: 1.4, sound: 'eat' }, build: (m) => tinCan(m, 'stew', '#b8a060', '#8a1a14', 'ТУШЁНКА', 'ГОВЯЖЬЯ') },
   beans: { id: 'beans', name: ['Фасоль', 'Beans'], mass: 0.4, shape: 'cyl', half: [0.042, 0.055, 0.042], storable: true, material: 'metal', food: { hunger: 26, thirst: -2, time: 1.2, sound: 'eat' }, build: (m) => tinCan(m, 'beans', '#6a2a1a', '#e8c040', 'ФАСОЛЬ', 'В ТОМАТЕ') },
   sprats: { id: 'sprats', name: ['Шпроты', 'Sprats'], mass: 0.25, shape: 'cyl', half: [0.055, 0.015, 0.055], storable: true, material: 'metal', food: { hunger: 20, thirst: -6, time: 1.2, sound: 'eat' }, build: (m) => { const o = tinCan(m, 'sprats', '#d8b040', '#1a2a5a', 'ШПРОТЫ', 'В МАСЛЕ', 0.055, 0.028); return o; } },

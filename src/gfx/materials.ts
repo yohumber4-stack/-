@@ -33,6 +33,7 @@ export class Materials {
   corrugated: THREE.MeshStandardMaterial;
   corrugatedRust: THREE.MeshStandardMaterial;
   concrete: THREE.MeshStandardMaterial;
+  dirt: THREE.MeshStandardMaterial;
   rust: THREE.MeshStandardMaterial;
   chrome: THREE.MeshStandardMaterial;
   rubber: THREE.MeshStandardMaterial;
@@ -72,6 +73,8 @@ export class Materials {
     this.corrugated = std({ map: tex.corrugated, normalMap: tex.corrugatedNormal, roughnessMap: tex.corrugatedORM, metalnessMap: tex.corrugatedORM, roughness: 1, metalness: 1 });
     this.corrugatedRust = std({ map: tex.corrugatedRust, normalMap: tex.corrugatedNormal, roughnessMap: tex.corrugatedRustORM, metalnessMap: tex.corrugatedRustORM, roughness: 1, metalness: 1 });
     this.concrete = std({ map: tex.concrete, normalMap: tex.concreteNormal, roughness: 0.93 });
+    this.dirt = std({ map: tex.sandAlbedo, normalMap: tex.sandNormal, color: 0xc9b393, roughness: 1 });
+    this.dirt.normalScale.set(0.7, 0.7);
     this.rust = std({ map: tex.rust, normalMap: tex.rustNormal, roughness: 0.9, metalness: 0.25 });
     this.chrome = std({ color: 0xe8e8e8, roughness: 0.12, metalness: 1 });
     this.rubber = std({ color: 0x151515, roughness: 0.85 });

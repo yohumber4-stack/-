@@ -1,6 +1,21 @@
 import * as THREE from 'three';
 import type { ItemEntity } from './items';
 
+/**
+ * Structural copy sharing geometry/materials. Object3D.clone() deep-copies userData through JSON,
+ * which throws on the item back-references stored there (and froze the frame loop).
+ */
+function cloneVisual(src: THREE.Object3D): THREE.Object3D {
+  const mesh = src as THREE.Mesh;
+  const dst: THREE.Object3D = mesh.isMesh ? new THREE.Mesh(mesh.geometry, mesh.material) : new THREE.Group();
+  dst.position.copy(src.position);
+  dst.quaternion.copy(src.quaternion);
+  dst.scale.copy(src.scale);
+  dst.visible = src.visible;
+  for (const c of src.children) if (!(c as THREE.Light).isLight) dst.add(cloneVisual(c));
+  return dst;
+}
+
 /** Renders small 3D thumbnails of items for the hotbar (cached as data URLs). */
 export class IconRenderer {
   private cache = new Map<string, string>();
@@ -42,7 +57,7 @@ export class IconRenderer {
   }
 
   private render(src: THREE.Object3D, env: THREE.Texture | null): string {
-    const obj = src.clone(true);
+    const obj = cloneVisual(src);
     obj.position.set(0, 0, 0);
     obj.quaternion.identity();
     obj.scale.set(1, 1, 1);

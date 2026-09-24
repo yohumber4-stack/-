@@ -46,7 +46,7 @@ try {
 }
 renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5) * (test.pr ? Number(test.pr) : ui.settings.renderScale));
 renderer.setSize(innerWidth, innerHeight);
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMapping = THREE.NeutralToneMapping;
 renderer.toneMappingExposure = test.exp ? Number(test.exp) : 1.0;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;

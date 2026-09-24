@@ -146,6 +146,7 @@ export class Game {
   shadowSize = 2048;
   timeScale = 1;
   baseFov = 75;
+  baseExposure = 1;
   difficulty = 1;
   onFrame: ((dt: number) => void) | null = null;
   test: Record<string, string>;
@@ -380,6 +381,7 @@ export class Game {
     for (const [k, v] of Object.entries(s.bindings || {})) if (Array.isArray(v) && v.length) b[k] = v;
     this.input.bindings = b;
     this.baseFov = s.fov;
+    this.baseExposure = (this.test.exp ? Number(this.test.exp) : 1) * (s.brightness ?? 1);
     this.audio.setVolumes({ master: s.master, sfx: s.sfx, ambient: s.ambient, radio: s.radio, music: s.music, engine: s.engine });
     if (!this.env) return;
     this.env.secondsPerHour = (s.dayLength * 60) / 24;
@@ -1011,6 +1013,9 @@ export class Game {
       }
     }
     this.fx.update(dt);
+    this.env.indoor = damp(this.env.indoor, this.insideBuilding ? 1 : 0, 0.08, dt);
+    // eye adaptation: interiors read dim and warm, openings glow
+    this.renderer.toneMappingExposure = this.baseExposure * (1 + this.env.indoor * 0.45);
     this.env.update(dt * this.timeScale, dt);
     WORLD_UNIFORMS.uTime.value += dt;
     WIND.uWind.value.copy(this.env.wind);

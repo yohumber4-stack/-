@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "node tools/build.mjs",
+    "release": "node tools/build.mjs && cp dist/index.html TheLongRoad.html",
     "dev": "node tools/serve.mjs --watch",
     "serve": "node tools/serve.mjs",
     "typecheck": "tsc --noEmit -p ."

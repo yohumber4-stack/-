@@ -245,6 +245,12 @@ vec4 texMain(vec2 uv){
   metal *= 1. - (fbm(vec2(uv.x, uv.y), vec2(50., 2.), 3) * 0.5 + 0.5) * 0.15;
   vec3 rust = mix(toLin(vec3(0.32, 0.14, 0.06)), toLin(vec3(0.60, 0.30, 0.12)), fbm(uv + 0.5, vec2(20.), 4) * 0.5 + 0.5);
   vec3 c = mix(metal, rust, m);
+  // bake rib shading into the albedo so the profile still reads under flat lighting
+  float rib = sin(uv.x * 12. * 6.2831853);
+  c *= 0.8 + 0.2 * (rib * 0.5 + 0.5);
+  c *= 1. - 0.25 * pow(max(-rib, 0.), 6.);
+  // dark run-off streaks under each fold
+  c *= 1. - smoothstep(0.55, 0.95, fbm(uv, vec2(96., 1.), 4) * 0.5 + 0.5) * 0.3 * m;
   return vec4(c, 1.);
 }`;
 const CORR_ORM = CORR_COMMON + /* glsl */ `
@@ -518,8 +524,10 @@ export function generateTextures(renderer: THREE.WebGLRenderer, quality: number)
   const g = new TexGen(renderer);
   const S = quality >= 2 ? 1024 : 512;
   const S2 = quality >= 2 ? 512 : 256;
-  const col = (h: string) => new THREE.Color(h);
-  const v3 = (c: THREE.Color) => new THREE.Vector3(c.r, c.g, c.b);
+  // The texture shaders linearise with toLin(), so uniforms must stay sRGB-encoded;
+  // THREE.Color(hex) would already convert to linear and darken the result twice.
+  const col = (h: string) => new THREE.Color(h).getRGB({ r: 0, g: 0, b: 0 }, THREE.SRGBColorSpace);
+  const v3 = (c: { r: number; g: number; b: number }) => new THREE.Vector3(c.r, c.g, c.b);
 
   const sandH = g.run(SAND_H, { width: S, float: true, seed: 3 });
   const sandNormal = g.normalFrom(sandH, 9, S);

@@ -81,6 +81,8 @@ export class Environment {
   fogSun = new THREE.Color();
   sunElevation = 0;
   night = 0; // 0 day .. 1 full night
+  /** 0 outdoors .. 1 inside a building; the sky IBL is not occluded by roofs, so dim it by hand. */
+  indoor = 0;
   wind = new THREE.Vector3(3, 0, 1);
   windSpeed = 3;
   private windPhase = 0;
@@ -276,8 +278,9 @@ export class Environment {
     }
     this.hemi.color.copy(this.zen).lerp(this.hor, 0.5);
     this.hemi.groundColor.copy(this.ground);
-    this.hemi.intensity = 0.25 * this.ambient + this.lightning * 1.5;
-    (this.scene as any).environmentIntensity = this.ambient * 0.9 + this.lightning;
+    const shelter = 1 - this.indoor * 0.68;
+    this.hemi.intensity = (0.25 * this.ambient + this.lightning * 1.5) * shelter;
+    (this.scene as any).environmentIntensity = (this.ambient * 0.9 + this.lightning) * shelter;
 
     const fog = this.scene.fog as THREE.FogExp2;
     fog.color.copy(this.fogColor);
