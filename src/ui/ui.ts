@@ -157,6 +157,32 @@ export class UI {
   hideLoading() {
     this.show('loading', false);
   }
+  /** Loading finished: wait for a click / key press (browsers need a gesture for audio and mouse capture). */
+  loadingDone(onGo: () => void, auto = false) {
+    const b = document.getElementById('ldb');
+    if (b) b.style.width = '100%';
+    const l = document.getElementById('ldl');
+    if (l) l.textContent = tr('Готово', 'Ready');
+    const L = this.layers.loading;
+    const go = el('div', 'go', tr('Нажмите любую клавишу, чтобы начать', 'Press any key to start'));
+    L.appendChild(go);
+    let done = false;
+    const fire = (ev?: Event) => {
+      if (done) return;
+      if (ev instanceof KeyboardEvent && ['Tab', 'Alt', 'Meta', 'ControlLeft'].includes(ev.code)) return;
+      done = true;
+      window.removeEventListener('keydown', fire, true);
+      window.removeEventListener('mousedown', fire, true);
+      L.classList.add('fade');
+      setTimeout(() => { this.show('loading', false); L.classList.remove('fade'); }, 800);
+      onGo();
+    };
+    if (auto) fire();
+    else {
+      window.addEventListener('keydown', fire, true);
+      window.addEventListener('mousedown', fire, true);
+    }
+  }
 
   // ------------------------------------------------------------------ main menu
   showMenu() {
@@ -447,7 +473,7 @@ export class UI {
       <div id="toasts"></div>
       <div id="hint" class="hidden"></div>
       <div id="radioname" style="opacity:0"></div>
-      <div id="carhud" class="hidden"><div class="spd"><span id="ch_s">0</span><small>${tr('км/ч', 'km/h')}</small><span class="gear" id="ch_g">N</span></div><div class="row2"><span id="ch_w" class="warn"></span><span>⛽</span><span class="fuel"><i id="ch_f"></i></span></div></div>
+      <div id="carhud" class="hidden"><div class="spd"><span id="ch_s">0</span><small>${tr('км/ч', 'km/h')}</small><span class="gear" id="ch_g">N</span></div><div class="row2"><span id="ch_w" class="warn"></span><svg class="ficon" viewBox="0 0 24 24"><path d="M5 3h8a1 1 0 0 1 1 1v7h1.5a2 2 0 0 1 2 2v4a1 1 0 0 0 2 0V9.4l-2.2-2.2 1.4-1.4 2.6 2.6c.4.4.7.9.7 1.4V17a3 3 0 0 1-6 0v-4H14v8H4V4a1 1 0 0 1 1-1zm1 2v5h6V5z"/></svg><span class="fuel"><i id="ch_f"></i></span></div></div>
       <div id="fps" class="hidden"></div>
       <div id="blackout"></div>`;
     for (const id of ['cross', 'ring', 'ringv', 'target', 'handname', 'toasts', 'hint', 'radioname', 'carhud', 'ch_s', 'ch_g', 'ch_w', 'ch_f', 'fps', 'blood', 'blackout', 'compass', 'hotbar', 'stats']) this.hudEls[id] = H.querySelector('#' + id) as HTMLElement;

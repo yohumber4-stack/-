@@ -70,6 +70,8 @@ export interface WorldGenCtx {
   removeCar: (c: Car) => void;
 }
 
+const UP = new THREE.Vector3(0, 1, 0);
+
 export class WorldGen {
   private plans = new Map<number, PoiPlan[]>();
   built = new Map<string, BuiltPoi>();
@@ -134,6 +136,7 @@ export class WorldGen {
   setOrigin(ox: number, oz: number) {
     this.originX = ox;
     this.originZ = oz;
+    this.poolT = 0;
     for (const b of this.built.values()) b.group.position.set(b.plan.x - ox, b.plan.y, b.plan.z - oz);
   }
 
@@ -414,30 +417,61 @@ export class WorldGen {
         door.pivot.rotation.y = door.def.ry + (door.def.hinge === 'l' ? -1 : 1) * door.def.open * e;
         this.updateDoorCollider(bp, door);
       }
-      // lights at night close by
       const dark = this.night > 0.35;
       if (bp.bulbs) bp.bulbs.emissiveIntensity = dark ? 4 : 0;
-      const wantLights = dark && d < 60;
-      if (wantLights && !bp.lights.length) {
-        for (const l of bp.kit.lights.slice(0, 2)) {
-          const pl = new THREE.PointLight(l.color, l.intensity, l.dist, 1.6);
-          pl.position.set(l.x, l.y - 0.1, l.z);
-          bp.group.add(pl);
-          bp.lights.push(pl);
-        }
-      } else if (!wantLights && bp.lights.length) {
-        for (const l of bp.lights) bp.group.remove(l);
-        bp.lights = [];
-      }
       for (const b of bp.blinkers) (b.material as THREE.MeshStandardMaterial).emissiveIntensity = Math.sin(this.time * 3) > 0.3 ? 6 : 0.2;
       for (const n of bp.neons) {
         const m = (Array.isArray(n.material) ? n.material : [n.material]) as THREE.MeshStandardMaterial[];
         for (const mm of m) if (mm.emissiveMap) mm.emissiveIntensity = dark ? (Math.random() < 0.02 ? 0.2 : 1.6) : 0;
       }
     }
+    this.updateLightPool(px, pz);
     this.c.items.cullSpawned((key) => {
       const pk = key.split(':')[0];
       return this.built.has(pk);
+    });
+  }
+
+  /**
+   * Lamps of nearby buildings share a fixed pool of point lights: the number of lights in the scene
+   * never changes, so switching lamps on at dusk does not force every shader to recompile.
+   */
+  readonly lightPool: THREE.PointLight[] = [];
+  private poolT = 0;
+  initLightPool(scene: THREE.Object3D, n = 4) {
+    for (let i = 0; i < n; i++) {
+      const l = new THREE.PointLight(0xffd9a0, 0, 14, 1.6);
+      l.position.set(0, -1000, 0);
+      scene.add(l);
+      this.lightPool.push(l);
+    }
+  }
+  private updateLightPool(px: number, pz: number) {
+    if (!this.lightPool.length) return;
+    this.poolT -= 1;
+    if (this.poolT > 0) return;
+    this.poolT = 10;
+    const cand: { d: number; x: number; y: number; z: number; c: number; i: number; r: number }[] = [];
+    if (this.night > 0.35) {
+      const v = new THREE.Vector3();
+      for (const bp of this.built.values()) {
+        const d = Math.hypot(bp.plan.x - px, bp.plan.z - pz);
+        if (d > 70 || !bp.active) continue;
+        for (const l of bp.kit.lights) {
+          v.set(l.x, l.y - 0.1, l.z).applyAxisAngle(UP, bp.plan.ry);
+          const wx = bp.plan.x + v.x, wz = bp.plan.z + v.z;
+          cand.push({ d: Math.hypot(wx - px, wz - pz), x: wx - this.originX, y: bp.plan.y + v.y, z: wz - this.originZ, c: l.color, i: l.intensity, r: l.dist });
+        }
+      }
+      cand.sort((a, b) => a.d - b.d);
+    }
+    this.lightPool.forEach((pl, i) => {
+      const c = cand[i];
+      if (!c) { pl.intensity = 0; pl.position.set(0, -1000, 0); return; }
+      pl.position.set(c.x, c.y, c.z);
+      pl.color.setHex(c.c);
+      pl.intensity = c.i;
+      pl.distance = c.r;
     });
   }
 

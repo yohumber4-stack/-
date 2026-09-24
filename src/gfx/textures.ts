@@ -119,7 +119,8 @@ RoadF roadF(vec2 uv){
     pm = 1. - smoothstep(0., 0.025, max(d.x, d.y) + fbm(uv, vec2(30., 60.), 2) * 0.02);
   }
   r.patchm = pm;
-  r.track = exp(-pow((ax - 1.0) / 0.38, 2.)) + exp(-pow((ax - 2.95) / 0.38, 2.));
+  float ta = (ax - 1.0) / 0.38, tb = (ax - 2.95) / 0.38;
+  r.track = exp(-ta * ta) + exp(-tb * tb);
   float edgeL = 1. - smoothstep(0.055, 0.068, abs(ax - 3.95));
   float cen = 1. - smoothstep(0.045, 0.057, abs(ax - 0.13));
   float fy = fract(y / 4.);
@@ -178,7 +179,7 @@ PF planks(vec2 uv){
   p.r = r; p.fx = fx;
   float warp = fbm(uv + vec2(0., r), vec2(N, 3.), 4) * 1.6;
   float lines = sin((fx * 5. + warp * 2. + r * 20.) * 6.2831853) * 0.5 + 0.5;
-  lines = pow(lines, 2.5);
+  lines = pow(max(lines, 0.), 2.5);
   float fine = gnoise(vec2(uv.x * N * 24., uv.y * 5.), vec2(N * 24., 5.)) * 0.5 + 0.5;
   p.grain = lines * 0.55 + fine * 0.45;
   p.gap = smoothstep(0.0, 0.03, fx) * (1. - smoothstep(0.97, 1.0, fx));
@@ -533,7 +534,7 @@ export function generateTextures(renderer: THREE.WebGLRenderer, quality: number)
   const plankU = (dark: string, mid: string, grey: string, weather: number) => ({
     uDark: { value: v3(col(dark)) }, uMid: { value: v3(col(mid)) }, uGrey: { value: v3(col(grey)) }, uWeather: { value: weather },
   });
-  const planksDark = g.run(PLANKS_A, { width: S, srgb: true, seed: 8, uniforms: plankU('#2e1f14', '#6a4a30', '#77695a', 0.45) });
+  const planksDark = g.run(PLANKS_A, { width: S, srgb: true, seed: 8, uniforms: plankU('#44301f', '#7e5d3c', '#8a7c6a', 0.45) });
   const planksLight = g.run(PLANKS_A, { width: S, srgb: true, seed: 8, uniforms: plankU('#7a5a38', '#b58a58', '#a89478', 0.15) });
   const planksH = g.run(PLANKS_H, { width: S, float: true, seed: 8 });
   const planksNormal = g.normalFrom(planksH, 6, S);

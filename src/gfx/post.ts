@@ -72,6 +72,13 @@ export class Post {
     this.renderPass = new RenderPass(scene, camera);
     this.composer.addPass(this.renderPass);
     this.bloom = new UnrealBloomPass(new THREE.Vector2(w / 2, h / 2), 0.32, 0.55, 2.6);
+    // a single NaN/inf pixel must never be smeared over the whole frame by the blur chain
+    const hp = (this.bloom as any).materialHighPassFilter as THREE.ShaderMaterial;
+    hp.fragmentShader = hp.fragmentShader.replace(
+      'vec4 texel = texture2D( tDiffuse, vUv );',
+      'vec4 texel = texture2D( tDiffuse, vUv ); if (any(isnan(texel)) || any(isinf(texel))) texel = vec4(0.0); texel.rgb = min(texel.rgb, vec3(48.0));',
+    );
+    hp.needsUpdate = true;
     this.composer.addPass(this.bloom);
     this.grade = new ShaderPass(GradeShader);
     this.composer.addPass(this.grade);

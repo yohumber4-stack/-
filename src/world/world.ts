@@ -32,28 +32,31 @@ export class World {
       kinds.push({
         id: 'saguaro' + i, material: mats.cactus, collider: { r: 0.28, h: 4 },
         lods: [
-          { geo: makeSaguaro(100 + i, 28), maxDist: hi ? 220 : 150, castShadow: true, capacity: 500 },
-          { geo: makeSaguaro(100 + i, 10), maxDist: hi ? 1400 : 900, castShadow: false, capacity: 3000 },
+          { geo: makeSaguaro(100 + i, 28), maxDist: 95, castShadow: true, capacity: 400 },
+          { geo: makeSaguaro(100 + i, 9, 6, 6), maxDist: hi ? 380 : 260, castShadow: false, capacity: 1500 },
+          { geo: makeSaguaro(100 + i, 5, 3, 3), maxDist: hi ? 1400 : 900, castShadow: false, capacity: 3000 },
         ],
       });
-    kinds.push({ id: 'barrel', material: mats.cactus, collider: { r: 0.3, h: 0.7 }, lods: [{ geo: makeBarrelCactus(5), maxDist: 350, castShadow: true, capacity: 2000 }] });
-    for (let i = 0; i < 3; i++) kinds.push({ id: 'bush' + i, material: mats.bush, lods: [{ geo: makeDryBush(200 + i), maxDist: hi ? 380 : 250, castShadow: true, capacity: 4000 }] });
+    kinds.push({ id: 'barrel', material: mats.cactus, collider: { r: 0.3, h: 0.7 }, lods: [{ geo: makeBarrelCactus(5), maxDist: 90, castShadow: true, capacity: 600 }, { geo: makeBarrelCactus(5, 10), maxDist: 300, castShadow: false, capacity: 2000 }] });
+    for (let i = 0; i < 3; i++) kinds.push({ id: 'bush' + i, material: mats.bush, lods: [{ geo: makeDryBush(200 + i), maxDist: 70, castShadow: true, capacity: 900 }, { geo: makeDryBush(200 + i, 1), maxDist: hi ? 340 : 230, castShadow: false, capacity: 4000 }] });
     kinds.push({ id: 'grass', material: mats.grass, lods: [{ geo: makeGrassTuft(), maxDist: hi ? 190 : 120, castShadow: false, capacity: 12000 }] });
     for (let i = 0; i < 4; i++)
       kinds.push({
         id: 'rock' + i, material: mats.rock, collider: { r: 0.85, h: 0.8 },
         lods: [
-          { geo: makeRock(300 + i, 3), maxDist: 260, castShadow: true, capacity: 3000 },
+          { geo: makeRock(300 + i, 3), maxDist: 95, castShadow: true, capacity: 1200 },
+          { geo: makeRock(300 + i, 2), maxDist: 260, castShadow: false, capacity: 3000 },
           { geo: makeRock(300 + i, 1), maxDist: hi ? 800 : 500, castShadow: false, capacity: 4000 },
         ],
       });
-    for (let i = 0; i < 3; i++) kinds.push({ id: 'tree' + i, material: mats.deadWood, collider: { r: 0.18, h: 3 }, lods: [{ geo: makeDeadTree(400 + i), maxDist: 900, castShadow: true, capacity: 600 }] });
+    for (let i = 0; i < 3; i++) kinds.push({ id: 'tree' + i, material: mats.deadWood, collider: { r: 0.18, h: 3 }, lods: [{ geo: makeDeadTree(400 + i), maxDist: 110, castShadow: true, capacity: 200 }, { geo: makeDeadTree(400 + i), maxDist: 900, castShadow: false, capacity: 600 }] });
     this.propKinds = kinds;
     this.scatter = new Scatter(this.fn, kinds, desertRules(), 128, seed);
     const mk: MesaKind[] = ['butte', 'mesa', 'stack', 'spire', 'hoodoo', 'stack', 'butte', 'mesa', 'stack', 'butte', 'hoodoo', 'mesa'];
     const mesaKinds: PropKind[] = [];
-    for (let i = 0; i < 12; i++) mesaKinds.push({ id: 'mesa' + i, material: mats.rock, lods: [{ geo: makeMesa(500 + i + seed * 13, mk[i]), maxDist: hi ? 7000 : 5000, castShadow: false, capacity: 60 }] });
+    for (let i = 0; i < 12; i++) mesaKinds.push({ id: 'mesa' + i, material: mats.rock, lods: [{ geo: makeMesa(500 + i + seed * 13, mk[i]), maxDist: 1600, castShadow: false, capacity: 20 }, { geo: makeMesa(500 + i + seed * 13, mk[i], 1), maxDist: hi ? 7000 : 5000, castShadow: false, capacity: 60 }] });
     this.mesas = new Scatter(this.fn, mesaKinds, mesaRules(), 1024, seed);
+    this.mesas.step = 96;
     this.roadside = new Roadside(this.fn, mats, seed);
     this.group.add(this.terrain.group, this.road.group, this.scatter.group, this.mesas.group, this.roadside.group);
   }

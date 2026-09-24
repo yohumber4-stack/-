@@ -28,7 +28,7 @@ vec3 atmosphere(vec3 d){
   float y = d.y;
   vec2 dh = normalize(d.xz + 1e-5);
   vec2 sh = normalize(uSunDir.xz + 1e-5);
-  float towardSun = dot(dh, sh) * 0.5 + 0.5;
+  float towardSun = clamp(dot(dh, sh) * 0.5 + 0.5, 0.0, 1.0);
   vec3 hor = mix(uHorizon, uHorizonSun, pow(towardSun, 3.0));
   float t = pow(clamp(y, 0.0, 1.0), 0.42);
   vec3 col = mix(hor, uZenith, t);
@@ -83,7 +83,8 @@ void main(){
         col += vec3(0.8 + 0.2 * fract(h * 31.), 0.85, 1.0) * smoothstep(0.32, 0.0, dd) * b * tw * uStars;
       }
       vec3 mwN = normalize(vec3(0.3, 0.55, 0.78));
-      float band = exp(-pow(dot(d, mwN) / 0.2, 2.0));
+      float bd = dot(d, mwN) / 0.2;
+      float band = exp(-bd * bd);
       float mw = fbm(vec2(atan(d.z, d.x) * 6.0, d.y * 8.0)) * band;
       col += vec3(0.5, 0.55, 0.7) * mw * 0.06 * uStars;
     }

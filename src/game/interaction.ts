@@ -75,6 +75,10 @@ export class Interaction {
   get handDef(): ItemDef | null {
     return this.hand ? this.hand.def : null;
   }
+  /** Is an action bound to this button offered this frame? */
+  hasAction(btn: 'E' | 'LMB' | 'RMB') {
+    return this.acts.some((a) => a.btn === btn);
+  }
   has(tool: string) {
     if (this.hand?.def.tool === tool) return true;
     return this.slots.some((s) => s?.def.tool === tool);

@@ -100,12 +100,18 @@ export class Scatter {
     this.lastKey = '';
   }
 
+  private lastX = 1e9;
+  private lastZ = 1e9;
+  /** Minimum camera travel before instances are re-bucketed into LODs. */
+  step = 24;
+
   update(camX: number, camZ: number) {
     const cs = this.cellSize;
     const cx = Math.floor(camX / cs), cz = Math.floor(camZ / cs);
-    const key = cx + ',' + cz;
-    if (key === this.lastKey) return;
-    this.lastKey = key;
+    if (this.lastKey !== '' && Math.hypot(camX - this.lastX, camZ - this.lastZ) < this.step) return;
+    this.lastKey = cx + ',' + cz;
+    this.lastX = camX;
+    this.lastZ = camZ;
     const R = Math.ceil(this.radius / cs);
     const counts = this.meshes.map((l) => l.map(() => 0));
     for (let dz = -R; dz <= R; dz++)
@@ -117,8 +123,9 @@ export class Scatter {
         const insts = this.cell(ix, iz);
         for (const it of insts) {
           const kind = this.kinds[it.kind];
+          const d = Math.hypot(it.x - camX, it.z - camZ);
           let li = -1;
-          for (let l = 0; l < kind.lods.length; l++) if (dist <= kind.lods[l].maxDist) { li = l; break; }
+          for (let l = 0; l < kind.lods.length; l++) if (d <= kind.lods[l].maxDist) { li = l; break; }
           if (li < 0) continue;
           const mesh = this.meshes[it.kind][li];
           const n = counts[it.kind][li];

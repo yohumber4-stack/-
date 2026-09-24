@@ -8,12 +8,14 @@ canvas{display:block}
 .hidden{display:none!important}
 #loading{background:radial-gradient(ellipse at 30% 60%,#3a2716 0%,#140e09 60%,#070504 100%);display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;padding:7vh 8vw;pointer-events:auto;z-index:20}
 #loading .logo{margin-bottom:auto;margin-top:18vh}
-.logo .t1{font-size:clamp(40px,7vw,104px);font-weight:200;letter-spacing:.32em;line-height:1;color:#f4ead8;text-shadow:0 2px 30px rgba(232,167,74,.25);white-space:nowrap}
+.logo .t1{font-size:clamp(34px,5.2vw,90px);font-weight:200;letter-spacing:.24em;line-height:1;color:#f4ead8;text-shadow:0 2px 30px rgba(232,167,74,.25);white-space:nowrap}
 .logo .t1 b{font-weight:700;color:var(--acc)}
 .logo .t2{margin-top:14px;font-size:clamp(12px,1.2vw,16px);letter-spacing:.6em;color:var(--mut);text-transform:uppercase}
 #loading .bar{width:min(520px,70vw);height:3px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden;margin-top:16px}
 #loading .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--acc),var(--acc2));transition:width .25s}
 #loading .lbl{font-size:13px;letter-spacing:.2em;color:var(--mut);text-transform:uppercase}
+#loading .go{margin-top:22px;font-size:14px;letter-spacing:.32em;text-transform:uppercase;color:var(--acc2);animation:pulse 1.8s ease-in-out infinite}
+#loading.fade{transition:opacity .8s;opacity:0}
 #loading .tip{margin-top:26px;max-width:620px;font-size:15px;color:#d8cdbb;line-height:1.5;opacity:.85}
 .menu{pointer-events:auto;background:linear-gradient(90deg,rgba(10,8,6,.86) 0%,rgba(10,8,6,.55) 38%,rgba(10,8,6,0) 70%);display:flex;flex-direction:column;justify-content:center;padding:0 8vw}
 .menu .logo{margin-bottom:6vh}
@@ -93,6 +95,7 @@ input[type=text]{background:rgba(255,255,255,.06);border:1px solid var(--line);c
 #carhud .fuel{width:110px;height:5px;background:rgba(0,0,0,.5);border-radius:3px;overflow:hidden;display:inline-block}
 #carhud .fuel i{display:block;height:100%;background:var(--acc)}
 #carhud .warn{color:var(--red);font-weight:700;letter-spacing:.08em}
+#carhud .ficon{width:14px;height:14px;fill:#e8dcc8;opacity:.85}
 #fps{position:absolute;right:10px;bottom:6px;font-size:11px;color:rgba(255,255,255,.55);font-family:monospace}
 #radioname{position:absolute;left:50%;top:22%;transform:translateX(-50%);font-size:15px;letter-spacing:.2em;color:#f4d49a;text-shadow:0 1px 6px #000;text-transform:uppercase;transition:opacity .8s}
 #blood{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(120,0,0,0) 40%,rgba(150,10,5,.6) 100%);opacity:0}

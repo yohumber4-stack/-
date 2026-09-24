@@ -35,7 +35,7 @@ export class Noise3 {
 }
 
 // ------------------------------------------------------------------ cacti
-export function makeSaguaro(seed: number, radial = 28): THREE.BufferGeometry {
+export function makeSaguaro(seed: number, radial = 28, trunkSeg = 12, armSeg = 14): THREE.BufferGeometry {
   const r = new RNG(seed);
   const H = r.range(2.4, 5.6);
   const R = r.range(0.16, 0.26) * (0.8 + H / 12);
@@ -43,12 +43,14 @@ export function makeSaguaro(seed: number, radial = 28): THREE.BufferGeometry {
   const rib = (a: number) => 1 - 0.075 * Math.cos(a * ribs);
   const lean = new THREE.Vector3(r.range(-0.15, 0.15), 0, r.range(-0.15, 0.15));
   const trunk: THREE.Vector3[] = [];
-  const n = 12;
+  const n = trunkSeg;
+  const low = radial < 8;
   for (let i = 0; i <= n; i++) {
     const t = i / n;
     trunk.push(new THREE.Vector3(lean.x * t * t, -0.3 + t * (H + 0.3), lean.z * t * t));
   }
-  const geos: THREE.BufferGeometry[] = [tube(trunk, (t, a) => R * rib(a) * (1 - 0.1 * t), radial, { capEnd: true, capRings: 5 })];
+  const ribK = low ? (_a: number) => 1 : rib;
+  const geos: THREE.BufferGeometry[] = [tube(trunk, (t, a) => R * ribK(a) * (1 - 0.1 * t), radial, { capEnd: true, capRings: low ? 1 : 5 })];
   const arms = r.weighted([[0, 2], [1, 4], [2, 5], [3, 3], [4, 1]] as const);
   const phi0 = r.next() * Math.PI * 2;
   for (let k = 0; k < arms; k++) {
@@ -66,18 +68,19 @@ export function makeSaguaro(seed: number, radial = 28): THREE.BufferGeometry {
       base.clone().addScaledVector(dir, R + out * 1.05).add(new THREE.Vector3(0, rise * 0.6, 0)),
       base.clone().addScaledVector(dir, R + out * 1.02).add(new THREE.Vector3(0, rise, 0)),
     ];
-    const pts = curvePts(ctrl, 14);
-    geos.push(tube(pts, (t, a) => Ra * rib(a) * (t < 0.15 ? lerp(0.9, 1, t / 0.15) : 1), Math.max(10, Math.round(radial * 0.75)), { capEnd: true, capRings: 4 }));
+    const pts = curvePts(ctrl, armSeg);
+    geos.push(tube(pts, (t, a) => Ra * ribK(a) * (t < 0.15 ? lerp(0.9, 1, t / 0.15) : 1), low ? radial : Math.max(Math.min(10, radial), Math.round(radial * 0.75)), { capEnd: true, capRings: low ? 1 : 4 }));
   }
   return merge(geos);
 }
 
-export function makeBarrelCactus(seed: number): THREE.BufferGeometry {
+export function makeBarrelCactus(seed: number, radial = 28): THREE.BufferGeometry {
   const r = new RNG(seed);
   const H = r.range(0.35, 0.8), R = r.range(0.2, 0.32);
   const pts: THREE.Vector3[] = [];
-  for (let i = 0; i <= 8; i++) pts.push(new THREE.Vector3(0, -0.05 + (i / 8) * H, 0));
-  return tube(pts, (t, a) => R * Math.sin(Math.PI * (0.25 + 0.6 * t)) * (1 - 0.09 * Math.cos(a * 14)), 28, { capEnd: true, capRings: 4 });
+  const n = radial < 16 ? 4 : 8;
+  for (let i = 0; i <= n; i++) pts.push(new THREE.Vector3(0, -0.05 + (i / n) * H, 0));
+  return tube(pts, (t, a) => R * Math.sin(Math.PI * (0.25 + 0.6 * t)) * (radial < 16 ? 1 : 1 - 0.09 * Math.cos(a * 14)), radial, { capEnd: true, capRings: radial < 16 ? 1 : 4 });
 }
 
 // ------------------------------------------------------------------ grass, bushes
@@ -96,8 +99,10 @@ export function makeGrassTuft(): THREE.BufferGeometry {
   return g;
 }
 
-export function makeDryBush(seed: number): THREE.BufferGeometry {
+export function makeDryBush(seed: number, lod = 0): THREE.BufferGeometry {
   const r = new RNG(seed);
+  const radial = lod ? 3 : 4;
+  const maxDepth = lod ? 1 : 2;
   const geos: THREE.BufferGeometry[] = [];
   const size = r.range(0.5, 1.1);
   const stems = r.int(9, 15);
@@ -105,10 +110,10 @@ export function makeDryBush(seed: number): THREE.BufferGeometry {
   const addTwig = (from: THREE.Vector3, dir: THREE.Vector3, len: number, rad: number, depth: number) => {
     const to = from.clone().addScaledVector(dir, len);
     const mid = from.clone().lerp(to, 0.5).add(new THREE.Vector3(r.range(-0.05, 0.05), r.range(0, 0.04), r.range(-0.05, 0.05)).multiplyScalar(len));
-    const g = tube([from, mid, to], (t) => rad * (1 - 0.7 * t), 4);
+    const g = tube(lod ? [from, to] : [from, mid, to], (t) => rad * (lod ? 1.6 : 1) * (1 - 0.7 * t), radial);
     setColor(g, colA.clone().lerp(colB, r.next()));
     geos.push(g);
-    if (depth > 0) {
+    if (depth > 2 - maxDepth) {
       const k = r.int(1, 3);
       for (let i = 0; i < k; i++) {
         const d2 = dir.clone().add(new THREE.Vector3(r.range(-0.7, 0.7), r.range(-0.1, 0.5), r.range(-0.7, 0.7))).normalize();
@@ -198,7 +203,7 @@ const STRATA = ['#9a4a30', '#b8653e', '#c98a62', '#a8563a', '#d4a47c', '#8c4430'
 export type MesaKind = 'butte' | 'mesa' | 'stack' | 'spire' | 'hoodoo';
 
 /** Layered sandstone formation, unit scale: radius ~1, height ~1 (scaled by instance). */
-export function makeMesa(seed: number, kind: MesaKind): THREE.BufferGeometry {
+export function makeMesa(seed: number, kind: MesaKind, lod = 0): THREE.BufferGeometry {
   const r = new RNG(seed);
   const n3 = new Noise3(seed * 3 + 1);
   // silhouette profile: [y (0..1), radius scale]
@@ -226,14 +231,14 @@ export function makeMesa(seed: number, kind: MesaKind): THREE.BufferGeometry {
     const [y0, r0] = prof[i], [y1, r1] = prof[i + 1];
     const ledge = Math.abs(y1 - y0) < 0.015;
     if (ledge) tier++;
-    const steps = ledge ? 1 : Math.max(2, Math.ceil((y1 - y0) / 0.035));
+    const steps = ledge ? 1 : Math.max(lod ? 1 : 2, Math.ceil((y1 - y0) / (lod ? 0.08 : 0.035)));
     for (let s = 0; s < steps; s++) {
       const t = s / steps;
       rows.push([lerp(y0, y1, t), lerp(r0, r1, t), tier]);
     }
   }
   rows.push([prof[prof.length - 1][0], prof[prof.length - 1][1], tier]);
-  const seg = 80;
+  const seg = lod ? 36 : 80;
   const outlineOff = r.next() * 100;
   const outline = (a: number, t: number) => {
     const ca = Math.cos(a), sa = Math.sin(a);

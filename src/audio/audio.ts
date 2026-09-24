@@ -50,8 +50,91 @@ export interface CarAudio {
 
 type Ctx = AudioContext;
 
+/** Oscillator engine used when AudioWorklet is unavailable: pulse-train combustion + noise + starter whine. */
+class OscEngine {
+  private fire: OscillatorNode;
+  private sub: OscillatorNode;
+  private harm: OscillatorNode;
+  private gFire: GainNode;
+  private gSub: GainNode;
+  private gHarm: GainNode;
+  private noiseGain: GainNode;
+  private noiseFilt: BiquadFilterNode;
+  private starter: OscillatorNode;
+  private gStarter: GainNode;
+  private out: GainNode;
+  constructor(private ctx: Ctx, dest: AudioNode, noise: AudioBuffer) {
+    this.out = ctx.createGain();
+    this.out.gain.value = 0.55;
+    const shaper = ctx.createWaveShaper();
+    const curve = new Float32Array(2048);
+    for (let i = 0; i < 2048; i++) { const x = (i / 2047) * 2 - 1; curve[i] = Math.tanh(x * 2.2); }
+    shaper.curve = curve;
+    const mk = (type: OscillatorType, g: number): [OscillatorNode, GainNode] => {
+      const o = ctx.createOscillator();
+      o.type = type;
+      o.frequency.value = 20;
+      const gn = ctx.createGain();
+      gn.gain.value = g;
+      o.connect(gn).connect(shaper);
+      o.start();
+      return [o, gn];
+    };
+    [this.fire, this.gFire] = mk('sawtooth', 0.5);
+    [this.sub, this.gSub] = mk('square', 0.22);
+    [this.harm, this.gHarm] = mk('triangle', 0.12);
+    const src = ctx.createBufferSource();
+    src.buffer = noise;
+    src.loop = true;
+    this.noiseFilt = ctx.createBiquadFilter();
+    this.noiseFilt.type = 'bandpass';
+    this.noiseFilt.frequency.value = 300;
+    this.noiseFilt.Q.value = 0.8;
+    this.noiseGain = ctx.createGain();
+    this.noiseGain.gain.value = 0;
+    src.connect(this.noiseFilt).connect(this.noiseGain).connect(shaper);
+    // combustion pulses amplitude-modulate the noise
+    const am = ctx.createGain();
+    am.gain.value = 0.35;
+    this.fire.connect(am).connect(this.noiseGain.gain);
+    src.start();
+    this.starter = ctx.createOscillator();
+    this.starter.type = 'sawtooth';
+    this.starter.frequency.value = 700;
+    this.gStarter = ctx.createGain();
+    this.gStarter.gain.value = 0;
+    const sf = ctx.createBiquadFilter();
+    sf.type = 'bandpass';
+    sf.frequency.value = 900;
+    sf.Q.value = 2;
+    this.starter.connect(sf).connect(this.gStarter).connect(this.out);
+    this.starter.start();
+    shaper.connect(this.out).connect(dest);
+  }
+  set(p: EngineParams) {
+    const t = this.ctx.currentTime;
+    const rpm = Math.max(p.rpm, 1);
+    const f = rpm / 30; // firing frequency of a 4-cylinder four-stroke
+    const wob = 1 + (Math.random() - 0.5) * (0.03 + p.misfire * 0.25 + p.damage * 0.08);
+    this.fire.frequency.setTargetAtTime(f * wob, t, 0.03);
+    this.sub.frequency.setTargetAtTime(f * 0.5, t, 0.03);
+    this.harm.frequency.setTargetAtTime(f * 2.01, t, 0.03);
+    const load = Math.max(p.throttle, p.load);
+    this.gFire.gain.setTargetAtTime(0.35 + load * 0.35, t, 0.05);
+    this.gHarm.gain.setTargetAtTime(0.06 + load * 0.16 + (rpm / 6000) * 0.1, t, 0.05);
+    this.noiseFilt.frequency.setTargetAtTime(180 + rpm * 0.12 + load * 400, t, 0.05);
+    this.noiseGain.gain.setTargetAtTime(p.running ? 0.25 + load * 0.35 : p.cranking ? 0.2 : 0, t, 0.05);
+    this.gStarter.gain.setTargetAtTime(p.cranking ? 0.1 * (0.4 + p.crankStrength) : 0, t, 0.03);
+    this.starter.frequency.setTargetAtTime(420 + p.crankStrength * 480, t, 0.1);
+  }
+  dispose() {
+    try { this.out.disconnect(); this.fire.stop(); this.sub.stop(); this.harm.stop(); this.starter.stop(); } catch {}
+  }
+}
+
 export class EngineSound {
   private node: AudioWorkletNode | null = null;
+  private osc: OscEngine | null = null;
   private lp: BiquadFilterNode;
   private shelf: BiquadFilterNode;
   private gain: GainNode;
@@ -68,13 +151,18 @@ export class EngineSound {
     this.panner = a.makePanner(3);
     this.lp.connect(this.shelf).connect(this.gain).connect(this.panner).connect(dest);
     if (a.workletReady) {
-      this.node = new AudioWorkletNode(ctx, 'engine-proc', { numberOfInputs: 0, outputChannelCount: [1] });
-      this.node.connect(this.lp);
+      try {
+        this.node = new AudioWorkletNode(ctx, 'engine-proc', { numberOfInputs: 0, outputChannelCount: [1] });
+        this.node.connect(this.lp);
+      } catch (e) {
+        this.node = null;
+      }
     }
+    if (!this.node) this.osc = new OscEngine(ctx, this.lp, a.noiseBuffer);
   }
   set(p: EngineParams) {
-    if (!this.node) return;
-    this.node.port.postMessage({ rpm: p.rpm, throttle: p.throttle, load: p.load, running: p.running ? 1 : 0, crank: p.cranking ? 1 : 0, crankStrength: p.crankStrength, misfire: p.misfire, damage: p.damage });
+    if (this.node) this.node.port.postMessage({ rpm: p.rpm, throttle: p.throttle, load: p.load, running: p.running ? 1 : 0, crank: p.cranking ? 1 : 0, crankStrength: p.crankStrength, misfire: p.misfire, damage: p.damage });
+    else this.osc?.set(p);
     const t = this.a.ctx!.currentTime;
     const active = p.running || p.cranking;
     this.gain.gain.setTargetAtTime(active ? (p.inside ? 1.05 : 1.3) : 0, t, 0.08);
@@ -84,6 +172,7 @@ export class EngineSound {
   }
   dispose() {
     try { this.node?.disconnect(); this.gain.disconnect(); } catch {}
+    this.osc?.dispose();
   }
 }
 
@@ -98,6 +187,9 @@ export class AudioSystem {
   private reverb!: ConvolverNode;
   private reverbSend!: GainNode;
   private noise!: AudioBuffer;
+  get noiseBuffer() {
+    return this.brown;
+  }
   private brown!: AudioBuffer;
   private vols: Volumes = { master: 0.8, sfx: 0.9, ambient: 0.8, radio: 0.7, music: 0.6, engine: 0.9 };
   radio!: Radio;
@@ -114,8 +206,9 @@ export class AudioSystem {
   private voices = 0;
   paused = false;
 
+  private initialized = false;
   get ready() {
-    return !!this.ctx;
+    return this.initialized;
   }
 
   async init() {
@@ -152,15 +245,20 @@ export class AudioSystem {
     this.reverbSend = ctx.createGain();
     this.reverbSend.gain.value = 0.5;
     this.reverbSend.connect(this.reverb).connect(this.buses.sfx);
-    try {
-      const url = URL.createObjectURL(new Blob([ENGINE_WORKLET], { type: 'application/javascript' }));
-      await ctx.audioWorklet.addModule(url);
-      this.workletReady = true;
-    } catch (e) {
-      console.warn('engine worklet unavailable', e);
+    // data: URLs work from file:// pages, blob: URLs work everywhere else
+    for (const url of ['data:text/javascript;charset=utf-8,' + encodeURIComponent(ENGINE_WORKLET), URL.createObjectURL(new Blob([ENGINE_WORKLET], { type: 'application/javascript' }))]) {
+      try {
+        await ctx.audioWorklet.addModule(url);
+        this.workletReady = true;
+        break;
+      } catch (e) {
+        /* try the next loader */
+      }
     }
+    if (!this.workletReady) console.warn('engine worklet unavailable, using oscillator engine');
     this.radio = new Radio(ctx, this.buses.radio, this.noise, (d) => this.makePanner(d));
     this.startAmbient();
+    this.initialized = true;
     this.applyVolumes();
     if (ctx.state !== 'running') await ctx.resume().catch(() => {});
   }
@@ -241,7 +339,7 @@ export class AudioSystem {
     this.world.gain.linearRampToValueAtTime(1, t + sec);
   }
   setListener(pos: THREE.Vector3, fwd: THREE.Vector3, up: THREE.Vector3) {
-    if (!this.ctx) return;
+    if (!this.initialized) return;
     this.listenerPos.copy(pos);
     const l = this.ctx.listener;
     const t = this.ctx.currentTime;
@@ -329,7 +427,7 @@ export class AudioSystem {
 
   // ------------------------------------------------------------------ one-shots
   play(name: string, opts: PlayOpts = {}) {
-    if (!this.ctx || this.voices > 40) return;
+    if (!this.initialized || this.voices > 40) return;
     const ctx = this.ctx;
     const t = ctx.currentTime + (opts.delay ?? 0) + 0.005;
     const R = Math.random;
@@ -670,7 +768,7 @@ export class AudioSystem {
   }
   private windPh = 0;
   setAmbient(p: AmbientParams, dt: number) {
-    if (!this.ctx) return;
+    if (!this.initialized) return;
     const t = this.ctx.currentTime;
     const A = this.amb;
     this.windPh += dt;
@@ -719,7 +817,7 @@ export class AudioSystem {
     }
   }
   setCar(c: CarAudio | null) {
-    if (!this.ctx) return;
+    if (!this.initialized) return;
     const t = this.ctx.currentTime;
     const A = this.amb;
     const s = c ? Math.min(1, Math.abs(c.speed) / 35) : 0;
@@ -759,11 +857,11 @@ export class AudioSystem {
     }
   }
   createEngine(): EngineSound | null {
-    if (!this.ctx) return null;
+    if (!this.initialized) return null;
     return new EngineSound(this, this.ctx, this.buses.engine);
   }
   playMenuMusic() {
-    if (!this.ctx) return;
+    if (!this.initialized) return;
     if (!this.menu) this.menu = new MenuMusic(this.ctx, this.buses.music, this.noise);
     this.menu.start();
   }
@@ -771,7 +869,7 @@ export class AudioSystem {
     this.menu?.stop();
   }
   update(dt: number) {
-    if (!this.ctx) return;
+    if (!this.initialized) return;
     this.radio?.update(dt);
     this.menu?.update();
   }
