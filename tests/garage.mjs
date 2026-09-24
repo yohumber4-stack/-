@@ -24,12 +24,14 @@ export default async function (page, h) {
   await step('', `const bp = g.worldgen.built.get(g.worldgen.homestead().key); let n = 0; for (const d of bp.doors) { const wp = new d.pivot.position.constructor(); d.pivot.getWorldPosition(wp); if (wp.distanceTo(P(-8,1,5)) < 4) { g.worldgen.toggleDoor(d); n++; } } n`, 50);
   await step('opened', `tp(-8, 7.5); lookAt(P(-8, 0.8, 0)); null`);
   await step('bench', `tp(-8, -0.8); lookAt(P(-8.5, 1.1, -3.65)); null`);
-  await step('take', `const b = [...g.items.items].find(e => e.part && e.part.kind === 'battery'); g.interaction.take(b); lookAt(P(-8, 0.6, 3)); b.def.id`, 6);
   await step('hood', `g.playerCar.toggleHinge('hood'); tp(-8, 4.9); lookAt(g.playerCar.localToWorld(new (g.player.camera.position.constructor)(0.3, 0.7, 1.4))); null`, 30);
+  // carried items drop when they end up >2.4 m from the hold point, so bring the battery within reach first
+  await step('take', `const b = [...g.items.items].find(e => e.part && e.part.kind === 'battery'); const cam = g.player.camera; const f = new cam.position.constructor(0, 0, -1).applyQuaternion(cam.quaternion); const p = cam.position.clone().addScaledVector(f, 0.9); b.body.setTranslation({ x: p.x, y: p.y - 0.15, z: p.z }, true); g.interaction.take(b); b.def.id`, 6);
   await step('install', `const c = g.playerCar; g.interaction.installPart(c, 'battery'); c.addFuel('petrol', 15); null`, 4);
   await step('seat', `g.playerCar.toggleHinge('hood'); g.enterCar(g.playerCar, 'driver'); g.player.carPitch = -0.2; null`, 30);
-  await step('crank', `g.playerCar.setCrank(true); null`, 40);
-  await step('running', `g.playerCar.setCrank(false); g.input.simKey('KeyW', true); null`, 60);
+  // the starter only turns while the ignition key is held, like in the game
+  await step('crank', `g.input.simKey('KeyI', true); null`, 40);
+  await step('running', `g.input.simKey('KeyI', false); g.input.simKey('KeyW', true); null`, 60);
   await step('driving', `g.player.thirdPerson = true; null`, 40);
   await step('out', `g.input.simKey('KeyW', false); null`, 30);
 }
