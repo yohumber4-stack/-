@@ -196,8 +196,9 @@ function buildShellGeometry() {
       // wheel well liners and inner walls
       for (const ax of [C.axleF, C.axleR]) {
         const liner = new THREE.CylinderGeometry(C.archR + 0.012, C.archR + 0.012, C.hw - 0.5, 20, 1, true, 0, Math.PI);
+        // half-tunnel over the wheel (axle along x, y ≥ 0); an extra rotateX here swung it to the rear half
+        // so it hung below the sill behind every wheel like a loose flap
         liner.rotateZ(Math.PI / 2);
-        liner.rotateX(-Math.PI / 2);
         liner.translate(side * (0.5 + (C.hw - 0.5) / 2), C.archY, ax);
         dark.push(liner);
         const disc = new THREE.CircleGeometry(C.archR + 0.012, 20, 0, Math.PI);
@@ -469,48 +470,52 @@ function plateTex(text: string) {
 }
 
 // ------------------------------------------------------------------ wheels
+/**
+ * Steel wheel, axle along x, outer face +x. A lathe faces +y when its profile runs outer→inner and
+ * +y becomes +x once turned onto the axle, so every outward-visible rim profile runs inward.
+ */
 export function wheelGeometry() {
   return cached('wheel', () => {
-    const R = C.wheelR, W = 0.165, rimR = 0.168;
-    // tyre cross-section revolved around the axle (lathe around Y then rotate to X)
-    const prof: [number, number][] = [];
-    const sw = W / 2;
-    const secPts: [number, number][] = [
-      [rimR, -sw * 0.82], [rimR + 0.02, -sw * 0.95], [R - 0.045, -sw * 1.0], [R - 0.018, -sw * 0.92], [R - 0.004, -sw * 0.72],
-      [R, -sw * 0.45], [R, sw * 0.45], [R - 0.004, sw * 0.72], [R - 0.018, sw * 0.92], [R - 0.045, sw * 1.0], [rimR + 0.02, sw * 0.95], [rimR, sw * 0.82],
+    const R = C.wheelR, W = 0.165, rimR = 0.168, sw = W / 2;
+    const toAxle = (g: THREE.BufferGeometry) => g.rotateZ(-Math.PI / 2);
+    // tyre section [radius, axial, v]: the tread texture keeps its pattern in v ∈ [0.3, 0.7], sidewalls outside
+    const sec: [number, number, number][] = [
+      [rimR, -sw * 0.82, 0], [rimR + 0.02, -sw * 0.95, 0.07], [R - 0.045, -sw, 0.18], [R - 0.018, -sw * 0.92, 0.26], [R - 0.004, -sw * 0.72, 0.31], [R, -sw * 0.45, 0.36],
+      [R, sw * 0.45, 0.64], [R - 0.004, sw * 0.72, 0.69], [R - 0.018, sw * 0.92, 0.74], [R - 0.045, sw, 0.82], [rimR + 0.02, sw * 0.95, 0.93], [rimR, sw * 0.82, 1],
     ];
-    for (const p of secPts) prof.push(p);
-    const tire = lathe(prof, 48);
-    // tread uv: u around (repeat), v across
+    const tire = lathe(sec.map(([r, y]) => [r, y] as [number, number]), 48);
     const uv = tire.attributes.uv as THREE.BufferAttribute;
-    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 6, uv.getY(i));
-    tire.rotateZ(-Math.PI / 2);
-    // steel rim: dish + barrel
-    const rim = lathe([[0.01, 0.045], [0.06, 0.047], [0.1, 0.035], [0.13, 0.02], [0.15, 0.012], [rimR - 0.004, 0.02], [rimR, 0.062], [rimR + 0.006, 0.07], [rimR + 0.006, 0.076]], 32);
-    rim.rotateZ(-Math.PI / 2);
-    const barrel = new THREE.CylinderGeometry(rimR - 0.003, rimR - 0.003, W * 0.95, 32, 1, true);
-    barrel.rotateZ(Math.PI / 2);
-    const cap = lathe([[0.001, 0.078], [0.03, 0.077], [0.06, 0.072], [0.085, 0.062], [0.1, 0.05], [0.104, 0.044]], 28);
-    cap.rotateZ(-Math.PI / 2);
-    const holes: THREE.BufferGeometry[] = [];
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 6, sec[i % sec.length][2]);
+    toAxle(tire);
+    // steel rim: lip and well, raised face ring with four real slots, domed centre, barrel behind
+    const lip = lathe([[rimR + 0.006, 0.076], [rimR + 0.006, 0.07], [rimR, 0.062], [rimR - 0.004, 0.024], [0.156, 0.022], [0.155, 0.031]], 48);
+    const ring = new THREE.Shape().absarc(0, 0, 0.155, 0, Math.PI * 2, false);
+    ring.holes.push(new THREE.Path().absarc(0, 0, 0.095, 0, Math.PI * 2, true));
     for (let k = 0; k < 4; k++) {
       const a = (k / 4) * Math.PI * 2 + Math.PI / 4;
-      const h = new THREE.CircleGeometry(0.02, 12);
-      h.scale(1, 1.6, 1);
-      h.rotateZ(a);
-      h.rotateY(Math.PI / 2);
-      h.translate(0.0425, Math.cos(a) * 0.125, Math.sin(a) * 0.125);
-      holes.push(h);
+      ring.holes.push(new THREE.Path().absellipse(Math.cos(a) * 0.125, Math.sin(a) * 0.125, 0.021, 0.014, 0, Math.PI * 2, true, a));
     }
+    const face = new THREE.ShapeGeometry(ring, 24);
+    face.rotateY(Math.PI / 2);
+    face.translate(0.031, 0, 0);
+    const hub = lathe([[0.095, 0.031], [0.09, 0.042], [0.075, 0.048], [0.001, 0.05]], 32);
+    const barrel = new THREE.CylinderGeometry(rimR - 0.003, rimR - 0.003, W * 0.95, 32, 1, true);
+    barrel.rotateZ(Math.PI / 2);
+    // brake drum fills the slots (they reach r = 0.146) so nothing shows through the wheel
+    const drum = new THREE.CylinderGeometry(0.152, 0.152, 0.07, 32);
+    drum.rotateZ(Math.PI / 2);
+    drum.translate(-0.012, 0, 0);
+    const cap = lathe([[0.068, 0.049], [0.067, 0.06], [0.06, 0.071], [0.045, 0.078], [0.022, 0.082], [0.001, 0.083]], 32);
+    toAxle(cap);
     const nuts: THREE.BufferGeometry[] = [];
     for (let k = 0; k < 4; k++) {
       const a = (k / 4) * Math.PI * 2;
-      const n = new THREE.CylinderGeometry(0.009, 0.009, 0.014, 6);
+      const n = new THREE.CylinderGeometry(0.0085, 0.0085, 0.012, 6);
       n.rotateZ(Math.PI / 2);
-      n.translate(0.05, Math.cos(a) * 0.05, Math.sin(a) * 0.05);
+      n.translate(0.051, Math.cos(a) * 0.08, Math.sin(a) * 0.08);
       nuts.push(n);
     }
-    return { tire, rim: merge([rim, barrel].map(nonIdx)), cap, holes: merge(holes.map(nonIdx)), nuts: merge(nuts.map(nonIdx)) };
+    return { tire, rim: merge([toAxle(lip), face, toAxle(hub), barrel].map(nonIdx)), cap, drum, nuts: merge(nuts.map(nonIdx)) };
   });
 }
 
@@ -859,7 +864,7 @@ export function buildPartVisual(slot: SlotId, mats: Materials, look: CarLook): P
   } else if (slot.startsWith('wheel')) {
     const g = wheelGeometry();
     const w = new THREE.Group();
-    w.add(mesh(g.tire, mats.tire), mesh(g.rim, mats.painted('#9a9a96', 0.35, 0.45)), mesh(g.cap, mats.chrome), mesh(g.holes, mats.black, false), mesh(g.nuts, mats.chrome, false));
+    w.add(mesh(g.tire, mats.tire), mesh(g.rim, mats.painted('#9a9a96', 0.35, 0.45, true)), mesh(g.cap, mats.chrome), mesh(g.nuts, mats.chrome, false), mesh(g.drum, mats.rust, false));
     // right side wheels face outward on -x
     if (slot.endsWith('r')) w.rotation.y = Math.PI;
     root.add(w);

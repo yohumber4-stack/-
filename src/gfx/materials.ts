@@ -92,11 +92,11 @@ export class Materials {
   }
 
   /** Painted metal (optionally rusty) with a shared wear texture. */
-  painted(color: number | string, rust = 0.3, rough = 0.5): THREE.MeshStandardMaterial {
-    const key = `painted:${color}:${rust.toFixed(2)}:${rough}`;
+  painted(color: number | string, rust = 0.3, rough = 0.5, doubleSided = false): THREE.MeshStandardMaterial {
+    const key = `painted:${color}:${rust.toFixed(2)}:${rough}${doubleSided ? ':2s' : ''}`;
     let m = this.cache.get(key) as THREE.MeshStandardMaterial;
     if (m) return m;
-    m = new THREE.MeshStandardMaterial({ color: new THREE.Color(color as any), roughness: rough, metalness: 0.15 });
+    m = new THREE.MeshStandardMaterial({ color: new THREE.Color(color as any), roughness: rough, metalness: 0.15, side: doubleSided ? THREE.DoubleSide : THREE.FrontSide });
     this.addRust(m, rust);
     this.cache.set(key, m);
     return m;

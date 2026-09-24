@@ -698,9 +698,17 @@ export class Car {
         b.applyTorqueImpulse({ x: up.x * tq, y: up.y * tq, z: up.z * tq }, true);
       }
     }
-    // keep a parked car parked
+    // keep a parked car parked. The tyre model has no static friction, so cancel the downhill pull of
+    // gravity along the ground and bleed off creep. Re-read the velocity: restoring the pre-step value
+    // discarded this step's suspension impulses and dropped parked cars onto their floor.
     if (contacts >= 3 && this.handbrake && speedAbs < 0.3 && thr < 0.05) {
-      b.setLinvel({ x: lin.x * 0.8, y: lin.y, z: lin.z * 0.8 }, false);
+      const n = _v2.set(0, 0, 0);
+      for (const w of this.wheels) if (w.contact) n.add(w.n);
+      n.normalize();
+      const gn = -9.81 * n.y, k = mass * dt;
+      b.applyImpulse({ x: gn * n.x * k, y: (9.81 + gn * n.y) * k, z: gn * n.z * k }, true);
+      const cur = b.linvel();
+      b.setLinvel({ x: cur.x * 0.8, y: cur.y, z: cur.z * 0.8 }, false);
     }
   }
 

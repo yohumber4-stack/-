@@ -365,27 +365,33 @@ vec4 texMain(vec2 uv){
 }`;
 
 const TREAD_COMMON = /* glsl */ `
+// v across the tyre profile (see wheelGeometry): 0..0.3 inner sidewall, 0.3..0.7 tread, 0.7..1 outer sidewall
+float inTread(float v){ return step(0.3, v) * step(v, 0.7); }
 float treadH(vec2 uv){
-  // u: around circumference (8 blocks per tile), v: across the tread
-  float v = uv.y;
+  // u: around circumference (8 blocks per tile)
+  float v = (uv.y - 0.3) / 0.4;
   float groove = 0.;
   for (int i = 1; i <= 3; i++){ float gc = float(i) * 0.25; groove = max(groove, 1. - smoothstep(0.018, 0.03, abs(v - gc))); }
   float lat = fract(uv.x * 8. + (v > 0.5 ? 0.5 : 0.) + abs(v - 0.5) * 0.8);
   float sipe = 1. - smoothstep(0.03, 0.06, abs(lat - 0.5));
-  sipe *= step(0.08, v) * step(v, 0.92);
-  float shoulder = smoothstep(0.0, 0.1, v) * smoothstep(1.0, 0.9, v);
-  float h = (1. - max(groove, sipe * 0.9)) * (0.6 + 0.4 * shoulder);
-  h += fbm(uv, vec2(8., 2.), 3) * 0.03;
-  return h;
+  sipe *= step(0.04, v) * step(v, 0.96);
+  float tread = 0.25 + 0.75 * (1. - max(groove, sipe * 0.9));
+  // sidewall: smooth rubber, a raised rim-protector ring and fine ribs near the bead
+  float s = uv.y < 0.5 ? uv.y / 0.3 : (1. - uv.y) / 0.3;
+  float ring = 1. - smoothstep(0.0, 0.05, abs(s - 0.3));
+  float ribs = (sin(uv.x * 6.2831853 * 96.) * 0.5 + 0.5) * (1. - smoothstep(0.06, 0.16, s));
+  float side = 0.5 + ring * 0.1 + ribs * 0.04;
+  return mix(side, tread, inTread(uv.y)) + fbm(uv, vec2(8., 2.), 3) * 0.02;
 }`;
 const TREAD_A = TREAD_COMMON + /* glsl */ `
 vec4 texMain(vec2 uv){
   float h = treadH(uv);
-  vec3 rubber = toLin(vec3(0.085, 0.082, 0.08)) * (0.9 + 0.2 * (fbm(uv, vec2(16., 4.), 3) * 0.5 + 0.5));
-  vec3 worn = toLin(vec3(0.13, 0.125, 0.12));
-  vec3 dust = toLin(vec3(0.55, 0.45, 0.33));
-  vec3 c = mix(rubber, worn, smoothstep(0.7, 1.0, h) * 0.6);
-  c = mix(dust, c, smoothstep(0.1, 0.45, h) * 0.7 + 0.3 * (fbm(uv + 0.3, vec2(8., 2.), 3) * 0.5 + 0.5));
+  float t = inTread(uv.y);
+  vec3 rubber = toLin(vec3(0.078, 0.076, 0.073)) * (0.88 + 0.24 * (fbm(uv, vec2(16., 4.), 3) * 0.5 + 0.5));
+  // scuffed block tops, desert dust packed into the grooves and a light film on the sidewalls
+  vec3 c = mix(rubber, toLin(vec3(0.125, 0.12, 0.115)), t * smoothstep(0.8, 1.0, h) * 0.5);
+  float dust = t * (1. - smoothstep(0.3, 0.55, h)) * 0.6 + (1. - t) * 0.12 * (fbm(uv + 0.3, vec2(8., 2.), 3) * 0.5 + 0.5);
+  c = mix(c, toLin(vec3(0.50, 0.42, 0.32)), dust);
   return vec4(c, 1.);
 }`;
 const TREAD_H = TREAD_COMMON + /* glsl */ `vec4 texMain(vec2 uv){ return vec4(treadH(uv), 0., 0., 1.); }`;
