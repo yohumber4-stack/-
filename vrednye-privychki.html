@@ -30,105 +30,137 @@
   .slide {
     position: absolute; inset: 0;
     background: #fff;
-    padding: 56px 80px 64px;
+    padding: 48px 72px 56px;
     display: none;
     flex-direction: column;
   }
   .slide.active { display: flex; }
   .slide h2 {
-    font-size: 40px; font-weight: 600;
+    font-size: 38px; font-weight: 600;
     line-height: 1.15;
-    padding-bottom: 14px;
-    margin-bottom: 28px;
+    padding-bottom: 12px;
+    margin-bottom: 22px;
     border-bottom: 3px solid var(--accent);
   }
   .slide .num {
-    position: absolute; right: 80px; bottom: 26px;
-    font-size: 16px; color: var(--muted);
+    position: absolute; right: 72px; bottom: 20px;
+    font-size: 15px; color: var(--muted);
   }
-  .slide .topic {
-    position: absolute; left: 80px; bottom: 26px;
-    font-size: 16px; color: var(--muted);
-  }
-  p, li { font-size: 23px; line-height: 1.4; }
+  .notes { display: none; }
+  p, li { font-size: 20px; line-height: 1.38; }
   ul { list-style: none; }
-  ul li { position: relative; padding-left: 26px; margin-bottom: 12px; }
+  ul li { position: relative; padding-left: 24px; margin-bottom: 10px; }
   ul li::before {
-    content: ""; position: absolute; left: 0; top: 13px;
-    width: 10px; height: 10px; background: var(--accent);
+    content: ""; position: absolute; left: 0; top: 10px;
+    width: 9px; height: 9px; background: var(--accent);
   }
   b { font-weight: 600; }
-  .cols { display: flex; gap: 56px; flex: 1; min-height: 0; }
+  .cols { display: flex; gap: 44px; min-height: 0; }
   .cols > * { flex: 1; }
+  .grow { flex: 1; }
   .figure { display: flex; flex-direction: column; align-items: center; justify-content: center; }
-  .caption { font-size: 17px; color: var(--muted); margin-top: 10px; text-align: center; }
-  .panel { background: var(--panel); padding: 22px 26px; }
-  .panel h3 { font-size: 22px; font-weight: 600; margin-bottom: 12px; color: var(--accent); }
-  .panel li { font-size: 20px; margin-bottom: 8px; }
-  .src { font-size: 14px; color: var(--muted); margin-top: auto; padding-top: 10px; }
+  .caption { font-size: 16px; color: var(--muted); margin-top: 8px; text-align: center; }
+  .panel { background: var(--panel); padding: 16px 20px; }
+  .panel h3 { font-size: 19px; font-weight: 600; margin-bottom: 8px; color: var(--accent); }
+  .panel p, .panel li { font-size: 17px; }
+  .panel li { margin-bottom: 6px; }
+  .panel li::before { top: 9px; width: 7px; height: 7px; }
+  .src { font-size: 13px; color: var(--muted); margin-top: auto; padding-top: 8px; }
+  .label { font-size: 17px; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: .03em; margin-bottom: 10px; }
+
+  /* Сетка карточек */
+  .cards { display: flex; gap: 14px; }
+  .cards > div { flex: 1; background: var(--panel); padding: 12px 16px; }
+  .cards b { display: block; font-size: 18px; margin-bottom: 4px; }
+  .cards span { font-size: 16px; line-height: 1.35; color: var(--text); display: block; }
+  .cards .myth b { color: var(--harm); }
 
   /* Слайд 1 */
   .title-slide { justify-content: center; }
   .title-slide .kicker { font-size: 20px; color: var(--accent); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
-  .title-slide h1 { font-size: 54px; font-weight: 700; line-height: 1.12; margin: 18px 0 22px; max-width: 760px; }
-  .title-slide .sub { font-size: 24px; color: var(--muted); max-width: 700px; }
-  .title-slide .who { margin-top: 56px; font-size: 20px; line-height: 1.6; color: var(--text); }
+  .title-slide h1 { font-size: 52px; font-weight: 700; line-height: 1.12; margin: 16px 0 20px; max-width: 760px; }
+  .title-slide .sub { font-size: 22px; color: var(--muted); max-width: 700px; }
+  .title-slide .plan { margin-top: 30px; font-size: 19px; color: var(--text); max-width: 700px; line-height: 1.5; }
+  .title-slide .who { margin-top: 36px; font-size: 19px; line-height: 1.6; }
   .title-slide svg { position: absolute; right: 80px; top: 50%; transform: translateY(-50%); }
 
-  /* Таблица ответственности */
-  table { border-collapse: collapse; width: 100%; font-size: 19px; }
-  th, td { text-align: left; padding: 11px 12px; border-bottom: 1px solid var(--line); vertical-align: top; line-height: 1.35; }
+  /* Таблицы */
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 17px; line-height: 1.35; }
   th { font-weight: 600; color: var(--accent); border-bottom: 2px solid var(--accent); }
-  td:first-child { white-space: nowrap; font-weight: 600; }
+  td:first-child { font-weight: 600; white-space: nowrap; }
+  table.big td, table.big th { font-size: 18px; padding: 12px 10px; }
+  .phone { font-size: 22px; font-weight: 700; color: var(--text); display: block; }
 
-  /* Шаги */
-  ol.steps { list-style: none; counter-reset: s; }
-  ol.steps li { counter-increment: s; position: relative; padding-left: 50px; margin-bottom: 15px; font-size: 21px; }
-  ol.steps li::before {
-    content: counter(s); position: absolute; left: 0; top: 1px;
-    width: 32px; height: 32px; background: var(--accent); color: #fff;
-    font-size: 18px; font-weight: 600; text-align: center; line-height: 32px;
+  /* Цепочка шагов */
+  .chain { display: flex; margin-bottom: 18px; }
+  .chain div {
+    flex: 1; font-size: 16px; line-height: 1.3; padding: 9px 10px 9px 24px;
+    background: var(--panel); position: relative; margin-right: 4px;
+    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%);
   }
-  .phone { font-size: 24px; font-weight: 700; color: var(--text); display: block; }
+  .chain div:first-child { clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%); padding-left: 14px; }
+  .chain b { color: var(--accent); }
 
   /* Таймлайн */
-  .timeline { display: flex; position: relative; margin: 20px 0 44px; }
+  .timeline { display: flex; position: relative; margin: 26px 0 48px; }
   .timeline::before {
     content: ""; position: absolute; left: 0; right: 0; top: 11px;
     height: 3px; background: var(--accent);
   }
-  .timeline .pt { flex: 1; position: relative; padding: 36px 12px 0 0; }
+  .timeline .pt { flex: 1; position: relative; padding: 34px 12px 0 0; }
   .timeline .pt::before {
     content: ""; position: absolute; left: 0; top: 2px;
     width: 18px; height: 18px; border-radius: 50%;
     background: #fff; border: 4px solid var(--accent);
   }
-  .timeline .t { font-size: 22px; font-weight: 700; color: var(--accent); }
-  .timeline .d { font-size: 17px; line-height: 1.35; margin-top: 6px; }
-  .conclusion { border-left: 5px solid var(--accent); background: var(--panel); padding: 18px 24px; }
+  .timeline .t { font-size: 24px; font-weight: 700; color: var(--accent); }
+  .timeline .d { font-size: 18px; line-height: 1.35; margin-top: 8px; }
+  .conclusion { border-left: 5px solid var(--accent); background: var(--panel); padding: 20px 26px; }
   .conclusion p { font-size: 22px; }
-  .thanks { font-size: 28px; font-weight: 600; color: var(--accent); margin-top: 40px; }
+  .thanks { font-size: 30px; font-weight: 600; color: var(--accent); margin-top: 44px; }
 
   /* Навигация */
   #nav {
-    position: fixed; right: 16px; bottom: 12px;
+    position: fixed; right: 16px; bottom: 12px; z-index: 5;
     display: flex; gap: 6px; align-items: center;
-    font-size: 14px; color: #ccc; background: rgba(32,34,36,.85); padding: 6px 8px;
+    font-size: 14px; color: #ccc; background: rgba(32,34,36,.9); padding: 6px 8px;
     opacity: 0; transition: opacity .3s;
   }
   #nav.visible, #nav:hover { opacity: 1; }
   #nav button {
     background: #3a3d40; color: #eee; border: 0; padding: 6px 12px;
-    font-size: 16px; cursor: pointer;
+    font-size: 15px; cursor: pointer; font-family: inherit;
   }
   #nav button:hover { background: #4a4e52; }
 
+  /* Режим докладчика (N) */
+  #notes-panel {
+    display: none; position: fixed; left: 0; right: 0; bottom: 0; height: 38vh;
+    background: #f7f7f5; border-top: 3px solid var(--accent);
+    padding: 16px 32px 50px; overflow-y: auto;
+  }
+  #notes-panel p { font-size: 18px; line-height: 1.5; margin-bottom: 10px; max-width: 1100px; }
+  #notes-panel .h { font-size: 14px; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
+  body.notes-on #notes-panel { display: block; }
+
+  /* Текст доклада (D) */
+  #doc { display: none; position: fixed; inset: 0; background: #fff; overflow-y: auto; padding: 48px 24px 80px; z-index: 4; }
+  body.doc-on #doc { display: block; }
+  #doc .inner { max-width: 800px; margin: 0 auto; }
+  #doc h1 { font-size: 30px; line-height: 1.2; margin-bottom: 6px; }
+  #doc .meta { color: var(--muted); font-size: 16px; margin-bottom: 30px; }
+  #doc h2 { font-size: 21px; color: var(--accent); margin: 26px 0 10px; }
+  #doc p { font-size: 18px; line-height: 1.6; margin-bottom: 10px; }
+
   @media print {
-    @page { size: 1280px 720px; margin: 0; }
     body { background: #fff; overflow: visible; }
-    #deck { position: static; transform: none !important; width: auto; height: auto; }
-    .slide { display: flex !important; position: relative; width: 1280px; height: 720px; page-break-after: always; break-after: page; }
-    #nav { display: none; }
+    #nav, #notes-panel { display: none !important; }
+    body:not(.doc-on) #doc { display: none; }
+    body.doc-on #deck { display: none; }
+    body.doc-on #doc { position: static; padding: 0; overflow: visible; }
+    body:not(.doc-on) #deck { position: static; transform: none !important; width: auto; height: auto; }
+    body:not(.doc-on) .slide { display: flex !important; position: relative; width: 1280px; height: 720px; page-break-after: always; break-after: page; }
   }
 </style>
 </head>
@@ -139,35 +171,40 @@
 <section class="slide title-slide">
   <div class="kicker">ОБЗР · Доклад</div>
   <h1>Вредные привычки: влияние на здоровье и способы избавления</h1>
-  <div class="sub">Курение, алкоголь, наркотики, игровая зависимость — чем они опасны и как от них избавиться</div>
+  <div class="sub">Курение, алкоголь, наркотики, игровая зависимость</div>
+  <div class="plan">Что такое зависимость · Как вредят организму · Что говорит закон · Как избавиться и куда обратиться</div>
   <div class="who">
     Выполнил(а): студент(ка) группы ______ &nbsp;Фамилия Имя<br>
     Преподаватель: Фамилия И. О.<br>
     МРТК, 2026
   </div>
-  <svg width="300" height="300" viewBox="0 0 300 300" aria-hidden="true">
+  <svg width="280" height="280" viewBox="0 0 300 300" aria-hidden="true">
     <path d="M150 262 C60 196 22 150 22 104 C22 66 50 40 86 40 C112 40 136 56 150 80 C164 56 188 40 214 40 C250 40 278 66 278 104 C278 150 240 196 150 262 Z"
           fill="#f2f3f0" stroke="#2f5d62" stroke-width="6"/>
     <polyline points="40,150 100,150 118,112 140,196 162,86 182,150 260,150"
           fill="none" stroke="#a3503a" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
   </svg>
   <div class="num">1 / 8</div>
+  <aside class="notes">
+    <p>Здравствуйте. Тема моего доклада — «Вредные привычки: влияние на здоровье и способы избавления».</p>
+    <p>Я расскажу, что такое вредная привычка и чем она отличается от зависимости, как курение, алкоголь, наркотики и игровая зависимость действуют на организм, какую ответственность за них предусматривает закон и, главное, как от зависимости можно избавиться и куда обратиться за помощью.</p>
+  </aside>
 </section>
 
 <!-- 2. Понятия -->
 <section class="slide">
   <h2>Что такое вредная привычка и зависимость</h2>
-  <div class="cols">
+  <div class="cols grow">
     <div>
-      <p style="margin-bottom:14px"><b>Вредная привычка</b> — регулярное действие, которое наносит вред здоровью человека или окружающих.</p>
-      <p style="margin-bottom:22px"><b>Зависимость</b> — состояние, когда человек не может отказаться от вещества или действия, даже понимая вред.</p>
+      <p style="margin-bottom:10px"><b>Вредная привычка</b> — регулярное действие, которое вредит здоровью человека или окружающих.</p>
+      <p style="margin-bottom:16px"><b>Зависимость</b> — состояние, когда человек не может отказаться от вещества или действия, даже понимая вред.</p>
       <ul>
-        <li><b>Психическая</b> — постоянные мысли о веществе, тревога и раздражение без него.</li>
-        <li><b>Физическая</b> — организм привыкает к веществу, при отказе начинается абстинентный синдром («ломка»).</li>
+        <li><b>Психическая</b> — навязчивые мысли о веществе, без него появляются тревога и раздражение.</li>
+        <li><b>Физическая</b> — вещество встраивается в обмен веществ. Если резко прекратить, начинается абстинентный синдром («ломка»): боли, бессонница, плохое самочувствие.</li>
       </ul>
     </div>
-    <div class="figure">
-      <svg width="470" height="400" viewBox="0 0 470 400" aria-label="Цикл зависимости">
+    <div class="figure" style="flex:.8">
+      <svg width="390" height="332" viewBox="0 0 470 400" aria-label="Цикл зависимости">
         <defs>
           <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
             <path d="M0 0 L10 5 L0 10 Z" fill="#2f5d62"/>
@@ -193,154 +230,213 @@
       <div class="caption">Цикл зависимости: с каждым кругом нужна бо́льшая доза</div>
     </div>
   </div>
+  <div class="label" style="margin-top:14px">Почему начинают</div>
+  <div class="cards">
+    <div><b>Любопытство</b><span>«Попробую один раз»</span></div>
+    <div><b>Компания</b><span>желание быть «своим»</span></div>
+    <div><b>Стресс и скука</b><span>попытка отвлечься</span></div>
+    <div><b>Реклама и соцсети</b><span>привычку показывают модной и «взрослой»</span></div>
+  </div>
   <div class="num">2 / 8</div>
+  <aside class="notes">
+    <p>Вредная привычка — это действие, которое человек регулярно повторяет и которое вредит его здоровью или здоровью окружающих. Главная опасность в том, что со временем она может перейти в зависимость. Тогда человек уже не может отказаться, даже когда понимает, что это вредно.</p>
+    <p>Зависимость бывает психической и физической. При психической человек постоянно думает о веществе, а без него чувствует тревогу и раздражение. При физической вещество встраивается в обмен веществ, и при резком отказе начинается абстинентный синдром, то есть «ломка»: боли, бессонница, плохое самочувствие.</p>
+    <p>На схеме показан цикл зависимости. Человек испытывает стресс, употребляет вещество, на короткое время ему становится легче, потом появляется тяга, и всё повторяется. С каждым кругом нужна большая доза, а облегчение становится слабее.</p>
+    <p>Чаще всего всё начинается с любопытства, желания быть «своим» в компании, стресса или скуки. Реклама, фильмы и блогеры тоже влияют: курение и алкоголь часто показывают как что-то взрослое и модное.</p>
+  </aside>
 </section>
 
 <!-- 3. Курение -->
 <section class="slide">
   <h2>Курение и вейпы</h2>
-  <div class="cols">
-    <div>
+  <div class="cols grow">
+    <div style="flex:1.2">
       <ul>
-        <li>В табачном дыме более <b>7000</b> химических веществ, около <b>70</b> из них вызывают рак.</li>
-        <li>Табак ежегодно убивает более <b>8 млн</b> человек в мире, из них около <b>1,3 млн</b> — некурящие, которые дышали чужим дымом.</li>
-        <li>В вейпах тоже никотин: зависимость формируется так же быстро, аэрозоль раздражает и повреждает лёгкие.</li>
+        <li>В табачном дыме более <b>7000</b> веществ, около <b>70</b> вызывают рак: бензол, формальдегид, мышьяк, полоний‑210.</li>
+        <li><b>Угарный газ</b> связывается с гемоглобином примерно в 200 раз прочнее кислорода. Органы получают меньше кислорода, появляются одышка и слабость.</li>
+        <li>Табак убивает более <b>8 млн</b> человек в год. Из них <b>1,3 млн</b> — некурящие, которые дышали чужим дымом.</li>
+        <li>Курильщики живут в среднем на <b>10 лет</b> меньше.</li>
+        <li><b>Вейпы:</b> в них тот же никотин, а при нагреве образуются токсичные вещества и частицы металлов. В 2019 г. в США более <b>2800</b> человек попали в больницу с поражением лёгких от вейпов.</li>
       </ul>
-      <div class="panel" style="margin-top:14px">
-        <h3>Что поражается</h3>
+    </div>
+    <div style="flex:.8; display:flex; flex-direction:column; gap:14px">
+      <div class="figure">
+        <svg width="340" height="255" viewBox="0 0 440 330" aria-label="Здоровые лёгкие и лёгкие курильщика">
+          <defs>
+            <path id="lobe" d="M-14 70 C-42 62 -92 96 -98 176 C-104 246 -84 290 -42 290 C-22 290 -14 268 -14 236 Z"/>
+            <g id="tree" fill="none" stroke-width="5" stroke-linecap="round">
+              <path d="M0 10 L0 70 M0 70 L-34 110 M0 70 L34 110 M-34 110 L-52 160 M34 110 L52 160"/>
+            </g>
+          </defs>
+          <g transform="translate(110,10)">
+            <g fill="#e3b3a6" stroke="#b77d6e" stroke-width="3">
+              <use href="#lobe"/><use href="#lobe" transform="scale(-1,1)"/>
+            </g>
+            <use href="#tree" stroke="#b77d6e"/>
+          </g>
+          <g transform="translate(330,10)">
+            <g fill="#6f6865" stroke="#4a4442" stroke-width="3">
+              <use href="#lobe"/><use href="#lobe" transform="scale(-1,1)"/>
+            </g>
+            <g fill="#2e2a29">
+              <circle cx="-60" cy="150" r="9"/><circle cx="-44" cy="210" r="12"/><circle cx="-72" cy="240" r="7"/>
+              <circle cx="58" cy="170" r="10"/><circle cx="46" cy="236" r="13"/><circle cx="74" cy="206" r="6"/>
+              <circle cx="-30" cy="258" r="6"/><circle cx="30" cy="130" r="7"/>
+            </g>
+            <use href="#tree" stroke="#4a4442"/>
+          </g>
+          <g font-family="Segoe UI, Arial, sans-serif" font-size="20" text-anchor="middle" fill="#5b666c">
+            <text x="110" y="324">здоровые</text><text x="330" y="324">курильщика</text>
+          </g>
+        </svg>
+      </div>
+      <div class="panel">
+        <h3>Закон</h3>
         <ul>
-          <li>лёгкие — хронический бронхит, ХОБЛ, рак</li>
-          <li>сердце и сосуды — инфаркт, инсульт</li>
-          <li>зубы, кожа, выносливость</li>
+          <li>Сигареты и вейпы запрещено продавать лицам младше 18 лет.</li>
+          <li>Курение в запрещённых местах — штраф 500–1500 ₽, на детской площадке — 2000–3000 ₽ (КоАП 6.24).</li>
         </ul>
       </div>
     </div>
-    <div class="figure" style="flex:.85">
-      <svg width="440" height="330" viewBox="0 0 440 330" aria-label="Здоровые лёгкие и лёгкие курильщика">
-        <defs>
-          <path id="lobe" d="M-14 70 C-42 62 -92 96 -98 176 C-104 246 -84 290 -42 290 C-22 290 -14 268 -14 236 Z"/>
-          <g id="tree" fill="none" stroke-width="5" stroke-linecap="round">
-            <path d="M0 10 L0 70 M0 70 L-34 110 M0 70 L34 110 M-34 110 L-52 160 M34 110 L52 160"/>
-          </g>
-        </defs>
-        <g transform="translate(110,10)">
-          <g fill="#e3b3a6" stroke="#b77d6e" stroke-width="3">
-            <use href="#lobe"/><use href="#lobe" transform="scale(-1,1)"/>
-          </g>
-          <use href="#tree" stroke="#b77d6e"/>
-        </g>
-        <g transform="translate(330,10)">
-          <g fill="#6f6865" stroke="#4a4442" stroke-width="3">
-            <use href="#lobe"/><use href="#lobe" transform="scale(-1,1)"/>
-          </g>
-          <g fill="#2e2a29">
-            <circle cx="-60" cy="150" r="9"/><circle cx="-44" cy="210" r="12"/><circle cx="-72" cy="240" r="7"/>
-            <circle cx="58" cy="170" r="10"/><circle cx="46" cy="236" r="13"/><circle cx="74" cy="206" r="6"/>
-            <circle cx="-30" cy="258" r="6"/><circle cx="30" cy="130" r="7"/>
-          </g>
-          <use href="#tree" stroke="#4a4442"/>
-        </g>
-        <g font-family="Segoe UI, Arial, sans-serif" font-size="18" text-anchor="middle" fill="#5b666c">
-          <text x="110" y="324">здоровые</text><text x="330" y="324">курильщика</text>
-        </g>
-      </svg>
-    </div>
   </div>
-  <div class="src">Источник: ВОЗ, информационный бюллетень «Табак».</div>
+  <div class="src">Источники: ВОЗ, бюллетень «Табак»; CDC; ФЗ № 15 «Об охране здоровья граждан от воздействия окружающего табачного дыма…»; КоАП РФ.</div>
   <div class="num">3 / 8</div>
+  <aside class="notes">
+    <p>Курение — самая распространённая вредная привычка. В табачном дыме больше семи тысяч химических веществ, и около семидесяти из них вызывают рак. Среди них бензол, формальдегид, мышьяк и даже радиоактивный полоний‑210.</p>
+    <p>Угарный газ из дыма связывается с гемоглобином примерно в двести раз прочнее кислорода. Поэтому органы недополучают кислород: у курильщика падает выносливость, появляется одышка. Со временем развиваются хронический бронхит, болезни сердца и сосудов, рак лёгких.</p>
+    <p>По данным ВОЗ, табак убивает больше восьми миллионов человек в год. Около 1,3 миллиона из них сами не курили, но дышали чужим дымом. В среднем курильщики живут примерно на десять лет меньше некурящих.</p>
+    <p>Многие считают вейпы безопасной заменой, но это не так. В них тот же никотин, поэтому зависимость формируется так же. При нагреве жидкости образуются токсичные вещества, а из нагревательной спирали в пар попадают частицы металлов. В 2019 году в США больше 2800 человек попали в больницу с тяжёлым поражением лёгких, связанным с вейпами.</p>
+    <p>По закону сигареты и вейпы нельзя продавать лицам младше 18 лет, а за курение в запрещённых местах, например на детской площадке, назначают штраф.</p>
+  </aside>
 </section>
 
 <!-- 4. Алкоголь -->
 <section class="slide">
   <h2>Алкоголь</h2>
-  <div class="cols">
-    <div>
+  <div class="cols grow">
+    <div style="flex:1.1">
       <ul>
-        <li>Этанол — токсичное вещество, вызывающее зависимость. <b>Безопасной дозы нет</b> (ВОЗ).</li>
-        <li>В мире с алкоголем связано <b>2,6 млн</b> смертей в год — это 4,7% всех смертей.</li>
-        <li>Больше всего страдают люди <b>20–39 лет</b>: травмы, ДТП, драки, отравления.</li>
-        <li>Мозг развивается примерно до 25 лет. Алкоголь в юности ухудшает память и внимание, а зависимость формируется быстрее.</li>
+        <li>Этанол — токсичное вещество, которое вызывает зависимость. <b>Безопасной дозы нет</b> (ВОЗ).</li>
+        <li>Алкоголь признан канцерогеном: повышает риск как минимум <b>7 видов рака</b>.</li>
+        <li><b>Что поражает:</b> мозг (память, внимание), печень (жировая дистрофия, цирроз), сердце (аритмия), поджелудочную железу (панкреатит).</li>
+        <li>С алкоголем связано <b>2,6 млн</b> смертей в год (4,7% всех смертей). Больше всего страдают люди <b>20–39 лет</b>: ДТП, травмы, отравления.</li>
+        <li>Мозг развивается примерно до 25 лет, поэтому в юности зависимость формируется быстрее.</li>
       </ul>
     </div>
-    <div class="figure" style="flex:.9">
-      <svg width="500" height="278" viewBox="0 0 540 300" aria-label="Стадии поражения печени">
-        <defs>
-          <path id="liver" d="M0 40 C18 6 104 0 140 16 C158 26 152 54 126 72 C94 94 50 102 24 90 C4 80 -8 60 0 40 Z"/>
-        </defs>
-        <g transform="translate(10,90)">
-          <use href="#liver" fill="#9c4a3c" stroke="#6e3228" stroke-width="3"/>
-        </g>
-        <g transform="translate(190,90)">
-          <use href="#liver" fill="#d8b878" stroke="#a88a4e" stroke-width="3"/>
-          <g fill="#f1e2bd"><circle cx="40" cy="40" r="6"/><circle cx="76" cy="30" r="5"/><circle cx="96" cy="58" r="6"/><circle cx="58" cy="70" r="4"/><circle cx="118" cy="36" r="4"/></g>
-        </g>
-        <g transform="translate(370,90)">
-          <use href="#liver" fill="#7b6a58" stroke="#4f4336" stroke-width="3"/>
-          <g fill="none" stroke="#4f4336" stroke-width="2">
-            <circle cx="30" cy="50" r="8"/><circle cx="52" cy="34" r="8"/><circle cx="74" cy="24" r="8"/><circle cx="98" cy="30" r="8"/>
-            <circle cx="120" cy="36" r="7"/><circle cx="48" cy="72" r="8"/><circle cx="72" cy="56" r="8"/><circle cx="96" cy="60" r="7"/><circle cx="118" cy="56" r="6"/>
+    <div style="flex:.9; display:flex; flex-direction:column; gap:14px">
+      <div class="figure">
+        <svg width="450" height="250" viewBox="0 0 540 300" aria-label="Стадии поражения печени">
+          <defs>
+            <path id="liver" d="M0 40 C18 6 104 0 140 16 C158 26 152 54 126 72 C94 94 50 102 24 90 C4 80 -8 60 0 40 Z"/>
+          </defs>
+          <g transform="translate(10,90)">
+            <use href="#liver" fill="#9c4a3c" stroke="#6e3228" stroke-width="3"/>
           </g>
-        </g>
-        <g fill="none" stroke="#5b666c" stroke-width="2">
-          <path d="M168 140 L184 140 M180 136 L184 140 L180 144"/>
-          <path d="M348 140 L364 140 M360 136 L364 140 L360 144"/>
-        </g>
-        <g font-family="Segoe UI, Arial, sans-serif" font-size="18" text-anchor="middle" fill="#1f2a30">
-          <text x="85" y="230">здоровая</text>
-          <text x="265" y="230">жировая</text><text x="265" y="252">дистрофия</text>
-          <text x="445" y="230" fill="#a3503a" font-weight="600">цирроз</text>
-        </g>
-      </svg>
-      <div class="caption">Как алкоголь постепенно разрушает печень</div>
+          <g transform="translate(190,90)">
+            <use href="#liver" fill="#d8b878" stroke="#a88a4e" stroke-width="3"/>
+            <g fill="#f1e2bd"><circle cx="40" cy="40" r="6"/><circle cx="76" cy="30" r="5"/><circle cx="96" cy="58" r="6"/><circle cx="58" cy="70" r="4"/><circle cx="118" cy="36" r="4"/></g>
+          </g>
+          <g transform="translate(370,90)">
+            <use href="#liver" fill="#7b6a58" stroke="#4f4336" stroke-width="3"/>
+            <g fill="none" stroke="#4f4336" stroke-width="2">
+              <circle cx="30" cy="50" r="8"/><circle cx="52" cy="34" r="8"/><circle cx="74" cy="24" r="8"/><circle cx="98" cy="30" r="8"/>
+              <circle cx="120" cy="36" r="7"/><circle cx="48" cy="72" r="8"/><circle cx="72" cy="56" r="8"/><circle cx="96" cy="60" r="7"/><circle cx="118" cy="56" r="6"/>
+            </g>
+          </g>
+          <g fill="none" stroke="#5b666c" stroke-width="2">
+            <path d="M168 140 L184 140 M180 136 L184 140 L180 144"/>
+            <path d="M348 140 L364 140 M360 136 L364 140 L360 144"/>
+          </g>
+          <g font-family="Segoe UI, Arial, sans-serif" font-size="20" text-anchor="middle" fill="#1f2a30">
+            <text x="85" y="230">здоровая</text>
+            <text x="265" y="230">жировая</text><text x="265" y="254">дистрофия</text>
+            <text x="445" y="230" fill="#a3503a" font-weight="600">цирроз</text>
+          </g>
+        </svg>
+        <div class="caption" style="margin-top:0">Как алкоголь постепенно разрушает печень</div>
+      </div>
+      <div class="panel">
+        <h3>Закон</h3>
+        <ul>
+          <li>Продажа алкоголя лицам младше 18 лет запрещена.</li>
+          <li>Вождение в состоянии опьянения — штраф 45 000 ₽ и лишение прав на 1,5–2 года (КоАП 12.8). Повторное — уголовная ответственность (УК 264.1).</li>
+        </ul>
+      </div>
     </div>
   </div>
-  <div class="src">Источник: ВОЗ, Глобальный доклад об алкоголе и здоровье, 2024.</div>
+  <div class="src">Источники: ВОЗ, Глобальный доклад об алкоголе и здоровье, 2024; КоАП РФ; УК РФ.</div>
   <div class="num">4 / 8</div>
+  <aside class="notes">
+    <p>Теперь об алкоголе. Этанол — токсичное вещество, которое вызывает зависимость. ВОЗ прямо говорит, что безопасной дозы алкоголя не существует. Кроме того, алкоголь признан канцерогеном и повышает риск как минимум семи видов рака.</p>
+    <p>Алкоголь поражает почти все органы. Сильнее всего страдает печень, и на рисунке видно, как это происходит. Сначала в клетках печени накапливается жир — это жировая дистрофия. Потом начинается воспаление, а в итоге клетки замещаются рубцовой тканью, и развивается цирроз. Также страдают мозг (ухудшаются память и внимание), сердце и поджелудочная железа.</p>
+    <p>В мире с алкоголем связано 2,6 миллиона смертей в год — почти пять процентов всех смертей. Больше всего страдают люди от 20 до 39 лет: это ДТП, травмы, драки и отравления.</p>
+    <p>Для молодых людей алкоголь особенно опасен, потому что мозг развивается примерно до 25 лет и зависимость формируется быстрее.</p>
+    <p>Продавать алкоголь несовершеннолетним запрещено. За вождение в нетрезвом виде назначают штраф 45 тысяч рублей и лишают прав на срок от полутора до двух лет, а за повторное нарушение наступает уголовная ответственность.</p>
+  </aside>
 </section>
 
 <!-- 5. Наркотики -->
 <section class="slide">
   <h2>Наркотики</h2>
   <div class="cols">
-    <div style="flex:.9">
+    <div style="flex:.95">
       <ul>
-        <li>Зависимость может появиться после нескольких приёмов, от синтетических наркотиков («соли», «спайсы») — особенно быстро.</li>
-        <li>Разрушают нервную систему и психику, поражают сердце, печень, почки.</li>
-        <li>Передозировка может закончиться смертью, в том числе при первом приёме.</li>
+        <li>Зависимость может появиться после нескольких приёмов, особенно от синтетики («соли», «спайсы»).</li>
+        <li>Разрушают нервную систему и психику (вплоть до психоза), поражают сердце, печень и почки.</li>
+        <li>Состав уличных наркотиков неизвестен, поэтому возможна смертельная передозировка, в том числе при первом приёме.</li>
         <li>Инъекции — риск заражения ВИЧ и гепатитами B и C.</li>
       </ul>
     </div>
     <div>
       <table>
         <tr><th>Статья</th><th>За что и наказание</th></tr>
-        <tr><td>КоАП 6.9</td><td>Употребление без назначения врача — штраф 4–5 тыс. ₽ или арест до 15 суток</td></tr>
+        <tr><td>КоАП 6.9</td><td>Употребление без назначения врача — штраф <span style="white-space:nowrap">4–5 тыс. ₽</span> или арест до 15 суток</td></tr>
         <tr><td>УК 228</td><td>Приобретение и хранение в значительном размере — до 3 лет лишения свободы</td></tr>
         <tr><td>УК 228.1</td><td>Сбыт, в том числе работа «закладчиком», — от 4 лет и вплоть до пожизненного</td></tr>
       </table>
-      <p style="font-size:18px; color:var(--muted); margin-top:14px">«Лёгкий заработок» закладчиком — это распространение наркотиков, а не курьерская работа.</p>
     </div>
   </div>
+  <div class="label" style="margin-top:44px">Мифы и факты</div>
+  <div class="cards">
+    <div class="myth"><b>«Травка безвредна»</b><span>Каннабис ухудшает память и концентрацию и повышает риск психических расстройств, особенно у молодых.</span></div>
+    <div class="myth"><b>«Брошу, когда захочу»</b><span>Зависимость меняет работу мозга. Бросить в одиночку удаётся редко.</span></div>
+    <div class="myth"><b>«Лёгкий заработок курьером»</b><span>Это работа закладчиком, то есть сбыт наркотиков (УК 228.1).</span></div>
+  </div>
   <div class="num">5 / 8</div>
+  <aside class="notes">
+    <p>Наркотики — самая опасная группа. Зависимость от них может появиться после нескольких приёмов, особенно от синтетических наркотиков, которые продают под названиями «соли» и «спайсы». Они разрушают нервную систему и психику, могут вызвать психоз, поражают сердце, печень и почки.</p>
+    <p>Состав уличных наркотиков никто не контролирует, поэтому смертельная передозировка возможна даже при первом приёме. Если наркотики вводят инъекционно, высок риск заразиться ВИЧ и гепатитами.</p>
+    <p>Многие верят мифам. Например, что «травка безвредна». На самом деле каннабис ухудшает память и концентрацию и повышает риск психических расстройств, особенно в молодом возрасте. Другой миф: «я смогу бросить, когда захочу». Но зависимость меняет работу мозга, и в одиночку бросить удаётся редко.</p>
+    <p>Отдельно об ответственности. За употребление без назначения врача назначают штраф или арест до 15 суток, а за хранение — уголовное наказание. В интернете часто предлагают «лёгкий заработок курьером». На деле это работа закладчиком, то есть сбыт наркотиков, и за это по статье 228.1 грозит от четырёх лет лишения свободы, а в особо тяжких случаях — вплоть до пожизненного.</p>
+  </aside>
 </section>
 
 <!-- 6. Игровая зависимость -->
 <section class="slide">
   <h2>Игровая и цифровая зависимость</h2>
-  <div class="cols">
-    <div>
-      <p style="margin-bottom:18px">ВОЗ включила <b>игровое расстройство</b> в Международную классификацию болезней (МКБ‑11, код 6C51). Это официальный диагноз.</p>
-      <div class="panel" style="margin-bottom:18px">
-        <h3>Признаки</h3>
-        <ul>
-          <li>не можешь контролировать время за игрой или телефоном</li>
-          <li>игра важнее учёбы, сна и общения</li>
-          <li>продолжаешь, несмотря на проблемы</li>
-        </ul>
-      </div>
-      <p><b>Последствия:</b> недосып, ухудшение зрения, боли в шее и спине, тревожность, падение успеваемости. Ставки и казино (лудомания) приводят к долгам.</p>
+  <div class="cols grow">
+    <div style="flex:1.1">
+      <p style="margin-bottom:14px">С 2022 года в Международной классификации болезней (МКБ‑11, код 6C51) есть диагноз <b>«игровое расстройство»</b>.</p>
+      <p class="label" style="margin-bottom:8px">Признаки</p>
+      <ul style="margin-bottom:12px">
+        <li>не контролирует, сколько времени проводит за игрой</li>
+        <li>игра важнее учёбы, сна и общения</li>
+        <li>продолжает играть, несмотря на проблемы, обычно не меньше года</li>
+      </ul>
+      <p><b>Последствия:</b> недосып, ухудшение зрения, боли в шее и спине, тревожность, падение успеваемости. Ставки и казино (лудомания) быстро приводят к долгам. Ставки запрещены до 18 лет.</p>
     </div>
-    <div class="figure" style="flex:.6">
-      <svg width="240" height="400" viewBox="0 0 240 400" aria-label="Телефон ночью">
+    <div class="panel" style="flex:.75; align-self:flex-start">
+      <h3>Цифровая гигиена</h3>
+      <ul>
+        <li>убирать телефон за час до сна</li>
+        <li>отключить лишние уведомления</li>
+        <li>поставить лимит экранного времени</li>
+        <li>сначала учёба и дела, потом игры</li>
+        <li>делать перерыв каждый час: встать, дать отдых глазам</li>
+      </ul>
+    </div>
+    <div class="figure" style="flex:.4">
+      <svg width="180" height="300" viewBox="0 0 240 400" aria-label="Телефон ночью">
         <rect x="30" y="10" width="180" height="370" rx="26" fill="#2f3437"/>
         <rect x="44" y="44" width="152" height="300" rx="6" fill="#f2f3f0"/>
         <rect x="100" y="24" width="40" height="6" rx="3" fill="#555b5f"/>
@@ -358,31 +454,53 @@
       </svg>
     </div>
   </div>
+  <div class="src">Источник: ВОЗ, МКБ‑11.</div>
   <div class="num">6 / 8</div>
+  <aside class="notes">
+    <p>Зависимость бывает не только от веществ. С 2022 года действует Международная классификация болезней МКБ‑11, и в ней есть диагноз «игровое расстройство».</p>
+    <p>Врачи ставят его, если человек не контролирует, сколько времени играет, игра становится для него важнее учёбы, сна и общения, и он продолжает играть, несмотря на проблемы. Обычно такое поведение длится не меньше года.</p>
+    <p>Похожим образом развивается зависимость от телефона и соцсетей. Её последствия — недосып, ухудшение зрения, боли в шее и спине, тревожность и падение успеваемости.</p>
+    <p>Отдельная тема — ставки и азартные игры, то есть лудомания. Они быстро приводят к долгам, а до 18 лет делать ставки запрещено.</p>
+    <p>Помогают простые правила цифровой гигиены: убирать телефон за час до сна, отключать лишние уведомления, ставить лимит экранного времени, делать перерывы и садиться за игры после учёбы, а не вместо неё.</p>
+  </aside>
 </section>
 
 <!-- 7. Как избавиться -->
 <section class="slide">
   <h2>Как избавиться от зависимости</h2>
-  <div class="cols">
-    <div style="flex:1.25">
-      <ol class="steps">
-        <li><b>Признать проблему</b> и назначить конкретную дату отказа.</li>
-        <li><b>Убрать поводы:</b> сигареты, вейп, алкоголь дома; места и компании, где употреблял.</li>
-        <li><b>Обратиться к врачу:</b> терапевт, нарколог, психотерапевт. Лечиться можно анонимно.</li>
-        <li><b>Лечение:</b> никотиновые пластыри и жвачки, лекарства по назначению врача, детоксикация, реабилитация.</li>
-        <li><b>Поддержка:</b> семья, друзья, группы взаимопомощи (Анонимные Алкоголики, Анонимные Наркоманы).</li>
-      </ol>
+  <div class="chain">
+    <div><b>1.</b> Признать проблему</div>
+    <div><b>2.</b> Назначить дату отказа</div>
+    <div><b>3.</b> Убрать поводы и компании</div>
+    <div><b>4.</b> Обратиться к врачу</div>
+    <div><b>5.</b> Опираться на поддержку близких</div>
+  </div>
+  <div class="cols grow">
+    <div style="flex:1.45">
+      <table class="big">
+        <tr><th>Зависимость</th><th>Кто помогает</th><th>Методы</th></tr>
+        <tr><td>Курение</td><td>терапевт, кабинет помощи в отказе от курения</td><td>никотиновые пластыри и жвачки, лекарства по назначению врача</td></tr>
+        <tr><td>Алкоголь</td><td>нарколог, психотерапевт</td><td>детоксикация, лекарства, психотерапия, группы «Анонимные Алкоголики»</td></tr>
+        <tr><td>Наркотики</td><td>наркологический диспансер</td><td>детоксикация, лечение в стационаре, реабилитация, «Анонимные Наркоманы»</td></tr>
+        <tr><td>Игры, ставки</td><td>психотерапевт, психолог</td><td>когнитивно‑поведенческая терапия, лимиты, блокировка сайтов ставок</td></tr>
+      </table>
+      <p style="font-size:17px; color:var(--muted); margin-top:14px">Когда тянет: подышать глубоко, выпить воды, переключиться на другое дело и переждать. Приступ тяги обычно проходит за несколько минут.</p>
     </div>
-    <div class="panel" style="flex:.75; align-self:flex-start">
+    <div class="panel" style="flex:.6; align-self:flex-start">
       <h3>Куда обратиться бесплатно</h3>
-      <p style="font-size:18px; margin-bottom:14px"><span class="phone">8‑800‑200‑0‑200</span>горячая линия Минздрава, помощь в отказе от курения</p>
-      <p style="font-size:18px; margin-bottom:14px"><span class="phone">8‑800‑2000‑122</span>телефон доверия для подростков и молодёжи</p>
-      <p style="font-size:18px">Наркологический диспансер по месту жительства</p>
-      <p style="font-size:16px; color:var(--muted); margin-top:14px">Кто сам обратился за лечением от наркомании, освобождается от ответственности по ст. 6.9 КоАП.</p>
+      <p style="margin-bottom:12px"><span class="phone">8‑800‑200‑0‑200</span>горячая линия Минздрава, доб. 1 — помощь в отказе от курения</p>
+      <p style="margin-bottom:12px"><span class="phone">8‑800‑2000‑122</span>детский телефон доверия, анонимно</p>
+      <p style="margin-bottom:12px">Наркологический диспансер: лечиться можно анонимно</p>
+      <p style="font-size:15px; color:var(--muted)">Кто сам обратился за лечением от наркомании, освобождается от ответственности по ст. 6.9 КоАП.</p>
     </div>
   </div>
   <div class="num">7 / 8</div>
+  <aside class="notes">
+    <p>Теперь самое главное — как избавиться от зависимости. Первые шаги одинаковы для любого случая. Нужно признать проблему и выбрать конкретную дату отказа. Затем убрать всё, что напоминает о привычке, и по возможности избегать мест и компаний, где обычно употреблял. Дальше — обратиться к врачу и опираться на поддержку близких.</p>
+    <p>Методы лечения зависят от вида зависимости. Курильщику помогут терапевт или кабинет медицинской помощи при отказе от курения. Там подберут никотинозаместительную терапию, например пластыри и жевательную резинку, или лекарства. Алкогольную и наркотическую зависимость лечит нарколог: детоксикация, лекарственная терапия, психотерапия и реабилитация. Лечиться можно анонимно. Игровую зависимость лечат психотерапевт или психолог, чаще всего с помощью когнитивно-поведенческой терапии.</p>
+    <p>Бесплатную консультацию дают по телефону горячей линии Минздрава 8‑800‑200‑0‑200: добавочный 1 — помощь в отказе от курения. Подросткам также помогут по детскому телефону доверия 8‑800‑2000‑122.</p>
+    <p>Когда появляется тяга, помогает простое правило: глубоко подышать, выпить воды, переключиться на другое дело и переждать. Приступ тяги обычно проходит за несколько минут.</p>
+  </aside>
 </section>
 
 <!-- 8. После отказа и вывод -->
@@ -397,21 +515,31 @@
     <div class="pt"><div class="t">10 лет</div><div class="d">риск рака лёгких примерно вдвое ниже</div></div>
   </div>
   <div class="conclusion">
-    <p><b>Вывод.</b> Вредную привычку проще не начинать, чем бросить. Но отказаться можно в любом возрасте: организм начинает восстанавливаться уже в первые часы, а за помощью можно обратиться бесплатно и анонимно.</p>
+    <p><b>Вывод.</b> Вредную привычку проще не начинать, чем бросить. Но отказаться можно в любом возрасте: организм начинает восстанавливаться уже в первые часы, а помощь можно получить бесплатно и анонимно.</p>
   </div>
   <p class="thanks">Спасибо за внимание!</p>
   <div class="src">
-    Источники: ВОЗ — бюллетени «Табак», «Алкоголь», «Польза отказа от курения для здоровья»; МКБ‑11; КоАП РФ ст. 6.9; УК РФ ст. 228, 228.1.
+    Источники: ВОЗ — бюллетени «Табак», «Алкоголь», «Польза отказа от курения для здоровья»; МКБ‑11; КоАП РФ ст. 6.9, 6.24, 12.8; УК РФ ст. 228, 228.1, 264.1.
   </div>
   <div class="num">8 / 8</div>
+  <aside class="notes">
+    <p>Хорошая новость в том, что организм начинает восстанавливаться сразу после отказа. Уже через 20 минут после последней сигареты снижаются пульс и давление. Через 12 часов уровень угарного газа в крови приходит в норму. Через две–двенадцать недель улучшаются кровообращение и работа лёгких, а через несколько месяцев уменьшаются кашель и одышка. Через год риск болезни сердца вдвое ниже, чем у курильщика, а через десять лет примерно вдвое снижается риск рака лёгких.</p>
+    <p>Вывод: вредную привычку гораздо проще не начинать, чем бросить. Но бросить можно в любом возрасте, и помощь доступна бесплатно и анонимно.</p>
+    <p>Спасибо за внимание. Готов(а) ответить на вопросы.</p>
+  </aside>
 </section>
 
 </div>
+
+<div id="notes-panel"><div class="h">Текст для выступления · слайд <span id="notes-num">1</span></div><div id="notes-body"></div></div>
+<div id="doc"><div class="inner"></div></div>
 
 <div id="nav">
   <button id="prev" title="Назад (←)">‹</button>
   <span id="count">1 / 8</span>
   <button id="next" title="Вперёд (→)">›</button>
+  <button id="btn-notes" title="Текст под слайдом (N)">Заметки</button>
+  <button id="btn-doc" title="Весь текст доклада (D)">Доклад</button>
   <button id="fs" title="Полный экран (F)">⛶</button>
 </div>
 
@@ -419,38 +547,66 @@
   const slides = document.querySelectorAll('.slide');
   const deck = document.getElementById('deck');
   const count = document.getElementById('count');
+  const notesBody = document.getElementById('notes-body');
+  const notesPanel = document.getElementById('notes-panel');
   let cur = 0;
 
   function show(i) {
     cur = Math.max(0, Math.min(slides.length - 1, i));
     slides.forEach((s, k) => s.classList.toggle('active', k === cur));
     count.textContent = (cur + 1) + ' / ' + slides.length;
+    document.getElementById('notes-num').textContent = cur + 1;
+    notesBody.innerHTML = slides[cur].querySelector('.notes').innerHTML;
+    notesPanel.scrollTop = 0;
     history.replaceState(null, '', '#' + (cur + 1));
   }
   function fit() {
-    const k = Math.min(innerWidth / 1280, innerHeight / 720);
+    const h = document.body.classList.contains('notes-on') ? innerHeight - notesPanel.offsetHeight : innerHeight;
+    const k = Math.min(innerWidth / 1280, h / 720);
+    deck.style.top = (h / 2) + 'px';
     deck.style.transform = 'translate(-50%, -50%) scale(' + k + ')';
   }
+  function toggleNotes() { document.body.classList.toggle('notes-on'); fit(); }
+  function toggleDoc() { document.body.classList.toggle('doc-on'); }
   function fullscreen() {
     if (document.fullscreenElement) document.exitFullscreen();
     else document.documentElement.requestFullscreen();
   }
 
+  // Текст доклада собирается из заметок к слайдам
+  (function buildDoc() {
+    const title = document.querySelector('.title-slide h1').textContent;
+    let html = '<h1>' + title + '</h1><div class="meta">Текст доклада по ОБЗР. Ctrl+P — распечатать, Esc — вернуться к слайдам.</div>';
+    slides.forEach((s, k) => {
+      const h = k === 0 ? 'Вступление' : s.querySelector('h2').textContent;
+      html += '<h2>Слайд ' + (k + 1) + '. ' + h + '</h2>' + s.querySelector('.notes').innerHTML;
+    });
+    document.querySelector('#doc .inner').innerHTML = html;
+  })();
+
   document.addEventListener('keydown', e => {
-    if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].includes(e.key)) { show(cur + 1); e.preventDefault(); }
-    else if (['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'].includes(e.key)) { show(cur - 1); e.preventDefault(); }
-    else if (e.key === 'Home') show(0);
-    else if (e.key === 'End') show(slides.length - 1);
-    else if (e.key === 'f' || e.key === 'F' || e.key === 'а' || e.key === 'А') fullscreen();
+    const k = e.key.toLowerCase();
+    if (k === 'escape' && document.body.classList.contains('doc-on')) { toggleDoc(); return; }
+    // «т», «в», «а» — те же клавиши в русской раскладке
+    if (k === 'd' || k === 'в') { toggleDoc(); return; }
+    if (document.body.classList.contains('doc-on')) return;
+    if (['arrowright', 'arrowdown', 'pagedown', ' ', 'enter'].includes(k)) { show(cur + 1); e.preventDefault(); }
+    else if (['arrowleft', 'arrowup', 'pageup', 'backspace'].includes(k)) { show(cur - 1); e.preventDefault(); }
+    else if (k === 'home') show(0);
+    else if (k === 'end') show(slides.length - 1);
+    else if (k === 'f' || k === 'а') fullscreen();
+    else if (k === 'n' || k === 'т') toggleNotes();
   });
   deck.addEventListener('click', e => show(e.clientX > innerWidth / 2 ? cur + 1 : cur - 1));
   document.getElementById('prev').onclick = () => show(cur - 1);
   document.getElementById('next').onclick = () => show(cur + 1);
+  document.getElementById('btn-notes').onclick = toggleNotes;
+  document.getElementById('btn-doc').onclick = toggleDoc;
   document.getElementById('fs').onclick = fullscreen;
   addEventListener('resize', fit);
   addEventListener('hashchange', () => show((parseInt(location.hash.slice(1), 10) || 1) - 1));
 
-  // Кнопки видны только после движения мыши, чтобы не закрывать слайд при показе
+  // Кнопки видны только после движения мыши, чтобы не мешать при показе
   const nav = document.getElementById('nav');
   let hideTimer;
   document.addEventListener('mousemove', () => {
