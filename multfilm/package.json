@@ -1,0 +1,13 @@
+{
+  "name": "coming-soon-multfilm",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Пиксельный мультфильм «COMING SOON», целиком сгенерированный кодом",
+  "type": "module",
+  "scripts": {
+    "render": "node tools/render.mjs",
+    "audio": "node tools/audio.mjs",
+    "still": "node tools/still.mjs",
+    "sheet": "node tools/sheet.mjs"
+  }
+}
