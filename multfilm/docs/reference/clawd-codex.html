@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Clawd, Codex, Gemini &amp; Qwen — пиксельные спрайты</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #141414;
+    --muted: #8a8a8a;
+    --ground: rgba(128, 128, 128, 0.18);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; background: var(--bg); }
+  body {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 64px;
+    padding: 32px;
+    font-family: 'Silkscreen', monospace;
+    color: var(--muted);
+    align-content: center;
+  }
+  figure { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  svg { width: 260px; height: auto; image-rendering: pixelated; display: block; }
+  figcaption { font-size: 14px; text-transform: lowercase; }
+</style>
+</head>
+<body>
+  <figure><div id="clawd"></div><figcaption>clawd</figcaption></figure>
+  <figure><div id="codex"></div><figcaption>codex</figcaption></figure>
+  <figure><div id="gemini"></div><figcaption>gemini</figcaption></figure>
+  <figure><div id="qwen"></div><figcaption>qwen</figcaption></figure>
+
+<script>
+  const EMPTY = '.'
+  const createGrid = (w, h) => Array.from({ length: h }, () => Array(w).fill(EMPTY))
+  const inBounds = (g, x, y) => y >= 0 && y < g.length && x >= 0 && x < g[0].length
+  const set = (g, x, y, ch) => { if (inBounds(g, x, y)) g[y][x] = ch }
+  const fillRect = (g, x, y, w, h, ch = 'o') => {
+    for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) set(g, xx, yy, ch)
+  }
+  const isSolid = (g, x, y) => inBounds(g, x, y) && g[y][x] !== EMPTY
+  const run = (g, x, y, dx, dy) => { let n = 0; while (isSolid(g, x + dx * (n + 1), y + dy * (n + 1))) n++; return n + 1 }
+
+  function shade(g, base = 'o', light = 'h', dark = 's') {
+    const out = g.map(r => [...r])
+    for (let y = 0; y < g.length; y++) for (let x = 0; x < g[0].length; x++) {
+      if (g[y][x] !== base) continue
+      const top = run(g, x, y, 0, -1), left = run(g, x, y, -1, 0)
+      const right = run(g, x, y, 1, 0), bottom = run(g, x, y, 0, 1)
+      const checker = (x + y) % 2 === 0
+      if (top === 1 || left === 1) out[y][x] = light
+      else if (right <= 2 || bottom <= 2) out[y][x] = dark
+      else if (top === 2 && checker) out[y][x] = light
+      else if ((right === 3 || bottom === 3) && checker) out[y][x] = dark
+    }
+    g.forEach((row, y) => row.forEach((_, x) => (g[y][x] = out[y][x])))
+  }
+
+  function outline(g, ch = 'O') {
+    const t = []
+    for (let y = 0; y < g.length; y++) for (let x = 0; x < g[0].length; x++) {
+      if (g[y][x] !== EMPTY) continue
+      let hit = false
+      for (let dy = -1; dy <= 1 && !hit; dy++) for (let dx = -1; dx <= 1 && !hit; dx++)
+        if (isSolid(g, x + dx, y + dy) && g[y + dy][x + dx] !== ch) hit = true
+      if (hit) t.push([x, y])
+    }
+    t.forEach(([x, y]) => (g[y][x] = ch))
+  }
+
+  function stampHand(g, x, y, size, dir, tones, seam = 'O') {
+    const cells = []
+    for (let yy = 0; yy < size; yy++) for (let xx = 0; xx < size; xx++)
+      if (!((xx === 0 || xx === size - 1) && (yy === 0 || yy === size - 1))) cells.push([xx, yy])
+    const has = new Set(cells.map(([cx, cy]) => cx + ',' + cy))
+    const inHand = (cx, cy) => has.has(cx + ',' + cy)
+    const overlap = ox => cells.filter(([cx, cy]) => isSolid(g, ox + cx, y + cy)).length
+    let ox = x
+    while (overlap(ox) > cells.length / 2 && ox > -size && ox < g[0].length) ox += dir
+    for (const [cx, cy] of cells) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const nx = cx + dx, ny = cy + dy
+      if (!inHand(nx, ny) && isSolid(g, ox + nx, y + ny)) set(g, ox + nx, y + ny, seam)
+    }
+    for (const [cx, cy] of cells) {
+      const tone = !inHand(cx, cy - 1) || !inHand(cx - 1, cy) ? tones.h : !inHand(cx, cy + 1) || !inHand(cx + 1, cy) ? tones.s : tones.o
+      set(g, ox + cx, y + cy, tone)
+    }
+  }
+
+  function render(el, g, palette, label, shadow, px = 5) {
+    const cols = g[0].length, rows = g.length, sy = (rows + 1) * px
+    let rects = ''
+    rects += `<rect x="${shadow.x * px}" y="${sy}" width="${shadow.w * px}" height="${2 * px}" fill="var(--ground)"/>`
+    rects += `<rect x="${(shadow.x - 3) * px}" y="${sy}" width="${3 * px}" height="${2 * px}" fill="var(--ground)" opacity=".5"/>`
+    rects += `<rect x="${(shadow.x + shadow.w) * px}" y="${sy}" width="${3 * px}" height="${2 * px}" fill="var(--ground)" opacity=".5"/>`
+    g.forEach((row, y) => {
+      let x = 0
+      while (x < row.length) {
+        const ch = row[x]
+        if (ch === EMPTY) { x++; continue }
+        let end = x + 1
+        while (end < row.length && row[end] === ch) end++
+        rects += `<rect x="${x * px}" y="${y * px}" width="${(end - x) * px}" height="${px}" fill="${palette[ch]}"/>`
+        x = end
+      }
+    })
+    el.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${cols * px} ${(rows + 3) * px}" role="img" aria-label="${label}" shape-rendering="crispEdges">${rects}</svg>`
+  }
+
+  function drawClawd() {
+    const g = createGrid(56, 39)
+    fillRect(g, 7, 1, 42, 27)
+    fillRect(g, 1, 9, 6, 9)
+    fillRect(g, 49, 9, 6, 9)
+    for (const x of [9, 17, 34, 42]) fillRect(g, x, 28, 5, 10)
+    shade(g)
+    for (const x of [9, 17, 34, 42]) fillRect(g, x, 28, 5, 1, 's')
+    fillRect(g, 10, 3, 4, 1, 'w'); set(g, 10, 4, 'w')
+    for (const x of [14, 36]) {
+      fillRect(g, x, 6, 6, 8, 'k')
+      fillRect(g, x + 1, 7, 2, 2, 'w')
+      set(g, x + 4, 11, 'w')
+    }
+    for (const x of [9, 43]) {
+      fillRect(g, x, 15, 4, 2, 'p'); set(g, x - 1, 16, 'p'); set(g, x + 4, 15, 'p')
+    }
+    set(g, 25, 15, 'm'); set(g, 30, 15, 'm'); fillRect(g, 26, 16, 4, 1, 'm')
+    outline(g)
+    return g
+  }
+
+  function drawCodex() {
+    const g = createGrid(56, 53)
+    fillRect(g, 22, 1, 12, 2)
+    fillRect(g, 18, 3, 20, 4)
+    fillRect(g, 8, 5, 8, 2)
+    fillRect(g, 40, 5, 8, 2)
+    fillRect(g, 6, 7, 44, 26)
+    fillRect(g, 18, 34, 20, 12)
+    fillRect(g, 11, 37, 6, 6)
+    fillRect(g, 39, 37, 6, 6)
+    fillRect(g, 19, 46, 6, 6)
+    fillRect(g, 31, 46, 6, 6)
+    shade(g)
+    fillRect(g, 16, 7, 2, 2, 's')
+    fillRect(g, 38, 7, 2, 2, 's')
+    fillRect(g, 18, 45, 20, 1, 's')
+    fillRect(g, 12, 12, 32, 16, 'k')
+    for (const [x, y] of [[12, 12], [42, 12], [12, 26], [42, 26]]) fillRect(g, x, y, 2, 2, 'o')
+    fillRect(g, 14, 14, 4, 1, 'g'); fillRect(g, 14, 15, 1, 2, 'g'); set(g, 41, 25, 'g')
+    ;[0, 1, 2, 3, 4, 4, 3, 2, 1, 0].forEach((o, i) => fillRect(g, 18 + o, 16 + i, 2, 1, 'e'))
+    fillRect(g, 30, 20, 8, 2, 'e')
+    outline(g)
+    return g
+  }
+
+  function drawGemini() {
+    const SIZE = 56, C = 28, R = 26.5, P = 0.68, limit = R ** P
+    const g = createGrid(SIZE, SIZE)
+    for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) {
+      const dx = Math.abs(x + 0.5 - C), dy = Math.abs(y + 0.5 - C)
+      if (dx ** P + dy ** P <= limit) set(g, x, y, 'o')
+    }
+    shade(g)
+    const regionAt = (x, y) => {
+      const dx = x + 0.5 - C, dy = y + 0.5 - C
+      const checker = (x + y) % 2 === 0
+      const dist = Math.hypot(dx, dy)
+      if (dist < 8 || (dist < 10 && checker)) return 'b'
+      const vertical = Math.abs(dy) >= Math.abs(dx)
+      const nearDiagonal = Math.abs(Math.abs(dx) - Math.abs(dy)) < 2 && checker
+      const useVertical = nearDiagonal ? !vertical : vertical
+      if (useVertical) return dy < 0 ? 'r' : 'g'
+      return dx < 0 ? 'y' : 'b'
+    }
+    for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) {
+      const t = g[y][x]
+      if (t === 'o' || t === 'h' || t === 's') g[y][x] = regionAt(x, y) + t
+    }
+    stampHand(g, 20, 33, 6, -1, { o: 'yo', h: 'yh', s: 'ys' })
+    stampHand(g, 30, 33, 6, 1, { o: 'bo', h: 'bh', s: 'bs' })
+    for (const x of [20, 32]) {
+      fillRect(g, x, 23, 4, 6, 'k')
+      fillRect(g, x, 23, 2, 2, 'w'); set(g, x + 3, 27, 'w')
+    }
+    fillRect(g, 17, 30, 3, 2, 'p'); fillRect(g, 36, 30, 3, 2, 'p')
+    set(g, 26, 30, 'm'); set(g, 29, 30, 'm'); fillRect(g, 27, 31, 2, 1, 'm')
+    outline(g)
+    return g
+  }
+
+  const QWEN_SHAPE = [
+    '..................ooooooooo.........................',
+    '..................oooooooooo........................',
+    '.................ooWooooooooo.......................',
+    '.................oWWWoooooooo.......................',
+    '................oWWWWooooooooo......................',
+    '...............ooWWWWWoooooooo......................',
+    '...............oWWWWWWooooooooooooooooooooooo.......',
+    '..............ooWWWWWWWooooooooooooooooooooooo......',
+    '..............oWWWWWWWoooooooooooooooooooooooo......',
+    '.............oWWWWWWWWooooooooooooooooooooooooo.....',
+    '.............oWWWWWWWoooooooooooooooooooooooooo.....',
+    '............oWWWWWWWoooooooooooooooooooooooooooo....',
+    '....oooooooooWWWWWWWoooooooooooooooooooooooooooo....',
+    '...oooooooooWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWoo...',
+    '...ooWWWWWWWoWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWo....',
+    '..ooooWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWoo....',
+    '..ooooWWWWWWWoWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWo.....',
+    '.ooooooWWWWWWWoWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWo......',
+    'ooooooooWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWoo......',
+    'ooooooooWWWWWWWooooooooooooooooooooooWWWWWWWo.......',
+    'oooooooooWWWWWWWooooooooooooooooooooWWWWWWWWoo......',
+    '.ooooooooWWWWWWWooooooooooooooooooooWWWWWWWWWo......',
+    '.oooooooooWWWWWWWooooooooooooooooooWWWWWWWWWWWo.....',
+    '..oooooooooWWWWWWWoooooooooooooooooWWWWWWWWWWWo.....',
+    '...ooooooooWWWWWWWooooooooooooooooWWWWWWWWWWWWWo....',
+    '...oooooooooWWWWWWWooooooooooooooWWWWWWWWWWWWWWoo...',
+    '....ooooooooWWWWWWWooooooooooooooWWWWWWWoWWWWWWWo...',
+    '....oooooooooWWWWWWWooooooooooooWWWWWWWooWWWWWWWoo..',
+    '.....ooooooooWWWWWWWooooooooooooWWWWWWWoooWWWWWWWo..',
+    '......ooooooooWWWWWWWooooooooooWWWWWWWooooWWWWWWWWo.',
+    '......oooooooooWWWWWWWoooooooooWWWWWWWoooooWWWWWWWoo',
+    '.......ooooooooWWWWWWWooooooooWWWWWWWoooooooWWWWWWoo',
+    '.......oooooooooWWWWWWWooooooWWWWWWWoooooooooooooooo',
+    '......ooooooooooWWWWWWWooooooWWWWWWWooooooooooooooo.',
+    '.....ooooooooooooWWWWWWWooooWWWWWWWoooooooooooooooo.',
+    '.....oooooooooooooWWWWWWooooWWWWWWWooooooooooooooo..',
+    '....ooooooooooooooWWWWWWWooWWWWWWWooooooooooooooo...',
+    '....oooooooooooooooWWWWWWWoWWWWWWWooooooooooooooo...',
+    '....oooooooWWWWWWWWWWWWWWoWWWWWWWooooooooooooooo....',
+    '....oooooooWWWWWWWWWWWWWWWWWWWWWooooooooo...........',
+    '.....oooooWWWWWWWWWWWWWWoWWWWWWWoooooooo............',
+    '......ooooWWWWWWWWWWWWWWWWWWWWWooooooooo............',
+    '......oooWWWWWWWWWWWWWWoWWWWWWWoooooooo.............',
+    '.......ooWWWWWWWWWWWWWoWWWWWWWoooooooo..............',
+    '.......ooooooooooooooooWWWWWWooooooooo..............',
+    '......................ooWWWWWoooooooo...............',
+    '.......................oWWWWooooooooo...............',
+    '........................oWWWoooooooo................',
+    '........................oWWooooooooo................',
+    '.........................oWoooooooo.................',
+    '.........................oooooooooo.................',
+  ]
+
+  function drawQwen() {
+    const PX = 5, PY = 2, rows = QWEN_SHAPE.length, cols = QWEN_SHAPE[0].length
+    const g = createGrid(cols + PX * 2, rows + PY * 2)
+    const at = (x, y) => (QWEN_SHAPE[y] && QWEN_SHAPE[y][x]) || '.'
+    const put = (x, y, ch) => set(g, x + PX, y + PY, ch)
+    const rect = (x, y, w, h, ch) => fillRect(g, x + PX, y + PY, w, h, ch)
+    QWEN_SHAPE.forEach((row, y) => [...row].forEach((ch, x) => { if (ch !== '.') put(x, y, ch) }))
+    shade(g)
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+      const ch = at(x, y)
+      if (ch === 'o') {
+        const seam = (at(x - 1, y) === 'W' && at(x + 1, y) === 'W') || (at(x, y - 1) === 'W' && at(x, y + 1) === 'W')
+        if (seam) put(x, y, 'L')
+      } else if (ch === 'W' && (at(x + 1, y) === 'o' || at(x, y + 1) === 'o')) put(x, y, 'L')
+    }
+    const hand = { o: 'o', h: 'h', s: 's' }
+    stampHand(g, 8 + PX, 30 + PY, 6, -1, hand)
+    stampHand(g, 42 + PX, 30 + PY, 6, 1, hand)
+    for (const x of [20, 28]) {
+      rect(x, 20, 4, 6, 'k')
+      rect(x, 20, 2, 2, 'w'); put(x + 3, 24, 'w')
+    }
+    rect(19, 26, 2, 1, 'p'); rect(31, 26, 2, 1, 'p')
+    put(24, 27, 'm'); put(27, 27, 'm'); rect(25, 28, 2, 1, 'm')
+    outline(g)
+    return g
+  }
+
+  render(document.getElementById('clawd'), drawClawd(), {
+    O: '#6b2e1c', o: '#d97757', h: '#ee9b78', s: '#b35a3c',
+    k: '#1a1113', w: '#fff6ee', p: '#f4a08c', m: '#5a2416',
+  }, 'Пиксельный Клавдик', { x: 12, w: 32 })
+
+  render(document.getElementById('codex'), drawCodex(), {
+    O: '#0d1444', o: '#5a7cff', h: '#8fa9ff', s: '#3f5ae0',
+    k: '#121838', g: '#2a3468', e: '#9fd8ff',
+  }, 'Пиксельный Codex', { x: 16, w: 24 })
+
+  render(document.getElementById('gemini'), drawGemini(), {
+    O: '#1a1f4d',
+    ro: '#ea4335', rh: '#ff7a6b', rs: '#b3261e',
+    yo: '#fbbc04', yh: '#ffd95a', ys: '#d08d00',
+    go: '#34a853', gh: '#6fd08a', gs: '#1e7a3a',
+    bo: '#4285f4', bh: '#7fb0ff', bs: '#2c5fc7',
+    k: '#151a3d', w: '#fdfcff', p: '#f7a8c4', m: '#151a3d',
+  }, 'Пиксельный Gemini', { x: 18, w: 20 })
+
+  render(document.getElementById('qwen'), drawQwen(), {
+    O: '#1f0d5c', o: '#6339e6', h: '#8b6dff', s: '#4521c2',
+    W: '#fdfcff', L: '#d6caff',
+    k: '#1a0f45', w: '#fdfcff', p: '#f7a8c4', m: '#1a0f45',
+  }, 'Пиксельный Qwen', { x: 19, w: 24 })
+</script>
+</body>
+</html>
