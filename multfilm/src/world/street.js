@@ -22,6 +22,7 @@ export function streetWorld() {
   const walls = [0xf4e3c8, 0xf6d2c2, 0xd8e6f0, 0xe4f0d8, 0xf2e0f0, 0xfff0c8];
   const roofs = [0xc8543c, 0x4a74b0, 0x8a4a6a, 0xd0843c, 0x3a8a6a];
   const lights = [];
+  const ridges = [];
   for (const side of [0, 1]) {
     let z = 2, i = side * 50;
     while (z < SZ - 8) {
@@ -46,6 +47,7 @@ export function streetWorld() {
       const lx = side === 0 ? fx + 1 : fx - 1;
       m.set(lx, 5, dz + 1, 0xffc86b | EMIT);
       lights.push([lx + 0.5, 5.5, dz + 1.5]);
+      ridges.push({ side, z0: z, z1: z + w - 1, y: h + 1 + Math.ceil(d / 2), x: (x0 + x1) / 2 });
       z += w + 1 + Math.floor(hash(i * 13) * 2);
     }
   }
@@ -66,6 +68,19 @@ export function streetWorld() {
       m.box(x, 2, z, x, 3, z, 0x6a4a32);
       m.ellipsoid(x + 0.5, 5, z + 0.5, 1.8, 1.6, 1.8, (xx, yy, zz) => mix(0x4a8a3a, 0x5aa048, hash2(xx + yy, zz)));
     }
-  cache = { mesh: meshify(m), lights };
+  // night props: lamp posts along both sidewalks and a bench (separate mesh)
+  const n = new VoxModel(SX, SY, SZ);
+  const lamps = [];
+  for (let z = 12; z < SZ - 6; z += 22) for (const [x, dir] of [[ST.x0 - 2, 1], [ST.x1 + 1, -1]]) {
+    n.box(x, 1, z, x, 8, z, 0x2c3140);
+    n.box(x, 8, z, x + dir, 8, z, 0x2c3140);
+    n.set(x + dir, 7, z, 0xfff0c0 | EMIT);
+    lamps.push([x + dir + 0.5, 6.8, z + 0.5]);
+  }
+  const bench = [ST.x0 - 2.5, 1, 53];
+  n.box(ST.x0 - 3, 2, 51, ST.x0 - 2, 2, 55, 0x9a6a44);
+  n.box(ST.x0 - 3, 3, 51, ST.x0 - 3, 4, 55, 0x8a5a36);
+  for (const z of [51, 55]) { n.set(ST.x0 - 3, 1, z, 0x2c3140); n.set(ST.x0 - 2, 1, z, 0x2c3140); }
+  cache = { mesh: meshify(m), nightMesh: meshify(n), lights, lamps, bench, ridges };
   return cache;
 }

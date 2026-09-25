@@ -142,101 +142,105 @@ export function renderScore() {
 
   // ===== S4: workshop =====
   T = S(4);
-  for (let t = 0.3; t < 18; t += 0.5) if (t < 12.5 || t > 15.2) wood(T + t, Math.round(t * 2) % 2 ? 1250 : 950, 0.06);
+  for (let t = 0.3; t < 18; t += 0.5) if (t < 12.8 || t > 15.6) wood(T + t, Math.round(t * 2) % 2 ? 1250 : 950, 0.05);
   melody(M, piz, T + 0.2, 100, 'A2 . E3 . A2 . E3 . F2 . C3 . E2 . B2 . A2 . E3 . A2 . E3 . F2 . C3 . E2 . G#2 .', 0.5);
   melody(M, piz, T + 5.0, 100, 'A2 . E3 . A2 . E3 . F2 . C3 . E2 . B2 . A2 . E3 . A2 . E3 . D2 . A2 . E2 . G#2 .', 0.5);
   melody(M, piz, T + 9.8, 100, 'A2 . E3 . A2 . E3 . F2 . C3 . E2 . B2 .', 0.5);
-  for (let k = 0; k < 4; k++) { squeak(T + 1.25 + k * 0.4, true); squeak(T + 1.45 + k * 0.4, false); noiseFx(FX, T + 1.25 + k * 0.4, 0.3, () => 0.1, (u) => Math.sin(Math.PI * u), 0, 0.06); }
-  noiseFx(FX, T + 2.95, 0.7, (u) => 0.4 - 0.35 * u, (u) => Math.exp(-u * 2), 0.3, 0.25);
+  [0.05, 4.1, 8.15, 12.0].forEach((d) => { paper(T + d, 0.2); bell(M, T + d + 0.25, 'E6', { vel: 0.05, decay: 0.6 }); });
+  for (let k = 0; k < 5; k++) { squeak(T + 0.95 + k * 0.4, true); squeak(T + 1.15 + k * 0.4, false); noiseFx(FX, T + 0.95 + k * 0.4, 0.3, () => 0.1, (u) => Math.sin(Math.PI * u), 0, 0.06); }
+  noiseFx(FX, T + 3.0, 0.7, (u) => 0.4 - 0.35 * u, (u) => Math.exp(-u * 2), 0.3, 0.28);
   melody(M, V('square', { duty: 0.5, lp: 0.08, vel: 0.12, a: 0.02, vib: 0.3, vibDelay: 0.3 }), T + 3.2, 90, 'G3 - - F#3 - - F3 - - E3 - - - - - -', 0.5);
-  [4.0, 8.0, 12.4].forEach((d) => paper(T + d, 0.16));
-  for (let k = 0; k < 6; k++) click(T + 4.55 + k * 0.08, 3000, 0.06);
-  noiseFx(FX, T + 5.0, 0.5, () => 0.08, (u) => Math.exp(-u * 3), 0, 0.2);
-  const flashHope = (t) => { sweep(FX, t, 0.6, 500, 2400, { vel: 0.08, env: (u) => u }); pop(t + 0.6, 0.3); melody(M, chime, t + 0.62, 160, 'G5 B5 D6 G6', 0.25); sweep(FX, t + 1.2, 0.8, 900, 400, { vel: 0.04 }); };
-  flashHope(T + 6.7); flashHope(T + 10.5);
-  // POV: everyone's flagships rise
-  melody(SND, V('saw', { a: 0.3, d: 0.5, s: 0.8, r: 1.2, lp: 0.05, vel: 0.12, gate: 1 }), T + 12.5, 60, 'D3+A3+F#4 - G3+B3+D4+G4 - A3+E4+C#5 - - -', 0.5);
-  [12.5, 12.9, 13.4, 13.8].forEach((d, i) => { whoosh(T + d, 1.2, 0.14, (i % 2 ? 0.4 : -0.4)); bell(M, T + d + 0.6, ['D6', 'A5', 'F#6', 'E6'][i], { vel: 0.08, decay: 2 }); });
-  melody(M, pno, T + 12.8, 72, 'C5 - E5 - F5 - E5 - C5 - - -', 0.5);
-  bell(FX, T + 13.4, 'E7', { vel: 0.04, decay: 0.3 });
-  melody(M, pno, T + 15.3, 60, 'A4 . . C5 . . B4 . . E4 - - -', 0.5);
+  whoosh(T + 5.0, 0.5, 0.12, 0.4); whoosh(T + 5.8, 0.7, 0.14, -0.2);
+  const flashHope = (t) => { sweep(FX, t, 0.6, 500, 2400, { vel: 0.08, env: (u) => u }); pop(t + 0.6, 0.32); melody(M, chime, t + 0.62, 160, 'G5 B5 D6 G6', 0.25); sweep(FX, t + 1.2, 0.8, 900, 400, { vel: 0.04 }); };
+  flashHope(T + 6.65); flashHope(T + 10.45);
+  paper(T + 9.7, 0.14); noiseFx(FX, T + 10.0, 0.25, () => 0.5, (u) => Math.sin(Math.PI * u), 0, 0.06);
+  melody(SND, V('saw', { a: 0.3, d: 0.5, s: 0.8, r: 1.2, lp: 0.05, vel: 0.12, gate: 1 }), T + 12.8, 60, 'D3+A3+F#4 - G3+B3+D4+G4 - A3+E4+C#5 - - -', 0.5);
+  [12.9, 13.3, 13.8, 14.2].forEach((d, i) => { whoosh(T + d, 1.2, 0.14, (i % 2 ? 0.4 : -0.4)); bell(M, T + d + 0.8, ['D6', 'A5', 'F#6', 'E6'][i], { vel: 0.08, decay: 2 }); });
+  melody(M, pno, T + 13.0, 72, 'C5 - E5 - F5 - E5 - C5 - - -', 0.5);
+  bell(FX, T + 13.8, 'E7', { vel: 0.04, decay: 0.3 });
+  melody(M, pno, T + 15.6, 70, 'A4 . . C5 . . B4 . E5 - - -', 0.5);
+  melody(M, brass, T + 16.6, 120, 'E4 - A4 - B4 - C5 - - -', 0.5);
+  zip(T + 17.2, 0.14); whoosh(T + 17.2, 0.6, 0.2, 0.5);
 
   // ===== S5: the hill =====
   T = S(5);
   melody(SND, pad, T, 60, 'F3+A3+C4 - - - - - C3+G3+E4 - - - - -', 0.5);
-  whoosh(T + 0.8, 1.2, 0.14, -0.4); whoosh(T + 1.6, 1.2, 0.14, 0);
+  whoosh(T + 0.8, 1.2, 0.14, -0.4); whoosh(T + 1.3, 1.2, 0.14, 0.2);
   melody(M, chime, T + 1.0, 90, 'F5 A5 C6 . E5 G5 C6 . F5 A5 C6 E6 - - . .', 0.5);
-  for (let k = 0; k < 16; k++) snare(M, T + 3.4 + k * 0.05, 0.04 + k * 0.004);
-  sweep(FX, T + 4.2, 1.0, 400, 2200, { vel: 0.1, env: (u) => u });
-  pop(T + 5.2, 0.4); melody(M, box, T + 5.2, 140, 'C6 E6 G6 B6', 0.25);
-  sweep(FX, T + 5.5, 0.9, 900, 250, { type: 'tri', vel: 0.1 });
-  melody(M, V('square', { duty: 0.5, lp: 0.08, vel: 0.12, a: 0.01, r: 0.05 }), T + 6.1, 110, 'C3 . Eb3 . C3 . G2 . C3 . Eb3 . F#3 . G3 .', 0.5);
-  whoosh(T + 7.4, 1, 0.12, 0.4); whoosh(T + 7.8, 1, 0.12, 0.5);
+  for (let k = 0; k < 14; k++) snare(M, T + 2.7 + k * 0.05, 0.04 + k * 0.004);
+  sweep(FX, T + 3.4, 0.9, 400, 2200, { vel: 0.12, env: (u) => u });
+  pop(T + 4.3, 0.42); melody(M, box, T + 4.3, 140, 'C6 E6 G6 B6', 0.25);
+  sweep(FX, T + 4.8, 0.9, 900, 250, { type: 'tri', vel: 0.1 });
+  melody(M, V('square', { duty: 0.5, lp: 0.08, vel: 0.12, a: 0.01, r: 0.05 }), T + 5.8, 110, 'C3 . Eb3 . C3 . G2 . C3 . Eb3 . F#3 . G3 .', 0.5);
+  whoosh(T + 6.9, 1, 0.12, 0.4); whoosh(T + 7.3, 1, 0.12, 0.5);
   const taunt = V('pulse', { duty: 0.5, lp: 0.3, vel: 0.1, a: 0.005, r: 0.05 });
-  melody(M, taunt, T + 8.6, 150, 'G4 E4 A4 G4 E4 . . . G4 E4 A4 G4 E4 . . .', 0.5);
-  for (let k = 0; k < 6; k++) ha(T + 8.7 + k * 0.55, 560 - (k % 2) * 60, 0.07, 0.5);
-  noiseFx(FX, T + 10.1, 1.1, () => 0.25, (u) => Math.sin(Math.PI * u), 0.3, 0.2);
-  noiseFx(FX, T + 10.9, 0.9, (u) => 0.7 - 0.5 * u, (u) => Math.exp(-u * 3) * (0.6 + 0.4 * Math.sin(u * 90)), 0, 0.15);
-  noiseFx(FX, T + 11.36, 0.06, () => 0.6, (u) => 1 - u, 0, 0.3);
-  ha(T + 11.5, 600, 0.09, -0.3); ha(T + 11.6, 500, 0.08, 0.3);
-  melody(M, leadSoft, T + 12.2, 70, 'E5 - D5 - C5 - B4 - A4 - - -', 0.5);
-  melody(SND, pad, T + 12.2, 60, 'A2+E3+C4 - - - F2+C3+A3 - - -', 0.5);
-  thunder(T + 14.4, 0.4);
-  rainAmb(T + 14.6, T + 16.2, 0.08);
+  melody(M, taunt, T + 8.4, 150, 'G4 E4 A4 G4 E4 . . . G4 E4 A4 G4 E4 . . .', 0.5);
+  for (let k = 0; k < 5; k++) ha(T + 8.45 + k * 0.5, 560 - (k % 2) * 60, 0.07, 0.5);
+  noiseFx(FX, T + 9.25, 0.06, () => 0.6, (u) => 1 - u, 0, 0.32); thud(T + 9.25, 0.18);
+  noiseFx(FX, T + 9.7, 1.2, () => 0.25, (u) => Math.sin(Math.PI * u), 0.3, 0.22);
+  splash(T + 10.2, 0.2); splash(T + 10.6, 0.14);
+  ha(T + 10.3, 600, 0.08, -0.3); ha(T + 10.45, 500, 0.07, 0.3);
+  melody(M, leadSoft, T + 11.3, 70, 'E5 - D5 - C5 - B4 - A4 - - -', 0.5);
+  melody(SND, pad, T + 11.3, 60, 'A2+E3+C4 - - - F2+C3+A3 - - -', 0.5);
+  thunder(T + 12.6, 0.4);
+  rainAmb(T + 12.8, T + 14.2, 0.08);
 
   // ===== S6: rain =====
   T = S(6);
-  rainAmb(T, T + 14, 0.13);
+  rainAmb(T, T + 12, 0.13);
   thunder(T + 2.5, 0.55);
   const pn = PIANO({ vel: 0.34 });
-  melody(M, pn, T + 0.8, 66, 'A4 - C5 - D5 - C5 - A4 - G4 - E4 - - -', 0.5);
-  melody(M, pn, T + 8.1, 66, 'F4 - G4 - A4 - C5 - B4 - - - . . . .', 0.5);
-  melody(SND, pad, T + 0.8, 33, 'A2+E3+C4 - F2+C3+A3 - C3+G3+E4 - G2+D3+B3 -', 0.5);
-  bell(M, T + 6.5, 'E7', { vel: 0.08, decay: 0.5 }); piano(M, T + 6.55, 'Bb3', { vel: 0.15 }); piano(M, T + 6.55, 'E4', { vel: 0.12 });
-  bell(M, T + 7.2, 'B6', { vel: 0.04, decay: 1.5 });
-  for (let k = 0; k < 5; k++) bell(M, T + 9.4 + k * 0.5, ['E6', 'D6', 'B5', 'A5', 'G5'][k], { vel: 0.04 - k * 0.006, decay: 0.6 });
-  melody(M, piz, T + 11.2, 110, 'E2 . G2 . A2 . Bb2 . E2 . G2 . A2 . Bb2 .', 0.5, { vel: 0.3 });
+  melody(M, pn, T + 0.6, 66, 'A4 - C5 - D5 - C5 - A4 - G4 - E4 - - -', 0.5);
+  melody(M, pn, T + 4.4, 66, 'F4 - G4 - A4 - C5 - B4 - - - . . . .', 0.5);
+  melody(SND, pad, T + 0.6, 33, 'A2+E3+C4 - F2+C3+A3 - C3+G3+E4 - G2+D3+B3 -', 0.5);
+  bell(M, T + 6.4, 'E7', { vel: 0.08, decay: 0.5 }); piano(M, T + 6.45, 'Bb3', { vel: 0.15 }); piano(M, T + 6.45, 'E4', { vel: 0.12 });
+  bell(M, T + 7.0, 'B6', { vel: 0.04, decay: 1.5 });
+  melody(M, piz, T + 8.3, 118, 'E2 . G2 . A2 . Bb2 . E2 . G2 . A2 . Bb2 .', 0.5, { vel: 0.32 });
+  for (let t = 8.4; t < 10.4; t += 0.25) pluck(FX, T + t, 'E5', { vel: 0.05, len: 0.1 });
+  for (let k = 0; k < 4; k++) bell(M, T + 8.5 + k * 0.4, ['E6', 'D6', 'B5', 'A5'][k], { vel: 0.035, decay: 0.6 });
+  bell(M, T + 10.55, 'A5', { vel: 0.12, decay: 0.8 }); sweep(FX, T + 10.55, 0.2, 600, 1200, { type: 'tri', vel: 0.08 });
+  melody(M, brass, T + 11.0, 120, 'A3+E4 - - C4+G4 - -', 0.5);
 
   // ===== S7: heist (spy theme) =====
   T = S(7);
-  rainAmb(T, T + 16, 0.06);
+  rainAmb(T, T + 16, 0.05);
   const spyBass = 'E2 . E2 G2 . E2 A2 Bb2 E2 . E2 G2 . E2 B2 Bb2';
   melody(M, piz, T + 0.1, 118, spyBass + ' ' + spyBass + ' ' + spyBass, 0.5);
   const stab = V('square', { duty: 0.3, lp: 0.2, vel: 0.06, a: 0.002, d: 0.05, s: 0.2, r: 0.03 });
   melody(M, stab, T + 0.1, 118, '. E4+G4 . . . E4+G4 . . . E4+A4 . . . E4+Bb4 . . . E4+G4 . . . E4+G4 . . . E4+A4 . . . D#4+B4 . .', 0.5);
-  for (let t = 0.1; t < 5; t += 60 / 118 / 2) hat(M, T + t, 0.04, false, -0.3);
-  for (let t = 1.5; t < 9.7; t += 0.5) noiseFx(FX, T + t, 0.12, () => 0.3, (u) => Math.sin(Math.PI * u), 0.4, 0.05);
-  for (let t = 0.3; t < 9.6; t += 0.37) sweep(FX, T + t, 0.08, 220 + (t * 37 % 80), 160, { vel: 0.05, pan: -0.5 });
-  giggle(T + 3.8, 420, 0.07, -0.2);
-  melody(SND, V('saw', { a: 0.3, s: 0.9, r: 0.5, lp: 0.03, vel: 0.1, gate: 1 }), T + 5.0, 60, 'E2+B2 - - - - - - -', 0.5);
-  heartbeat(T + 5.2, 0.2); heartbeat(T + 6.1, 0.2); heartbeat(T + 7.0, 0.22); heartbeat(T + 7.8, 0.24);
-  ha(T + 6.7, 380, 0.04, 0); ha(T + 7.2, 360, 0.035, 0);
-  melody(M, chime, T + 8.0, 150, 'E4 G4 B4 D5 G5 B5', 0.25);
-  noiseFx(FX, T + 8.0, 1.0, (u) => 0.05 + u * 0.4, (u) => u, 0, 0.12);
-  zip(T + 9.0, 0.15);
-  for (let k = 0; k < 4; k++) bell(FX, T + 9.5 + k * 0.32, 'E6', { ratio: 2.76, index: 3, decay: 1.8, vel: 0.13 });
-  crash(M, T + 9.7, 0.2, 2); whoosh(T + 9.65, 0.8, 0.3); melody(SND, pad, T + 9.7, 60, 'E3+G#3+B3+E4 - - - - -', 0.5);
-  for (let k = 0; k < 6; k++) wood(T + 10.05 + k * 0.12, 700 - k * 30, 0.1);
-  sweep(FX, T + 9.8, 0.25, 500, 1400, { type: 'square', vel: 0.06 });
-  melody(M, V('pulse', { duty: 0.25, vel: 0.08, a: 0.002, r: 0.02 }), T + 13.0, 160, 'B5 A5 G5 F#5 E5 D5 C5 B4 A4 G4 F#4 E4', 0.25);
-  for (let t = 13.0; t < 14.0; t += 0.09) click(T + t, 400, 0.08, -0.4);
-  noiseFx(FX, T + 13.1, 0.4, () => 0.8, (u) => Math.exp(-u * 5), 0, 0.2); for (let k = 0; k < 6; k++) bell(FX, T + 13.12 + k * 0.05, ['E7', 'C7', 'G7', 'D7', 'A6', 'F7'][k], { vel: 0.03, decay: 0.3 });
-  bell(M, T + 14.2, 'G5', { vel: 0.06 });
+  for (let t = 0.1; t < 6.2; t += 60 / 118 / 2) hat(M, T + t, 0.04, false, -0.3);
+  for (let t = 1.4; t < 10.0; t += 0.5) noiseFx(FX, T + t, 0.12, () => 0.3, (u) => Math.sin(Math.PI * u), 0.4, 0.05);
+  for (let t = 1.9; t < 10.0; t += 0.4) bell(FX, T + t, 'G6', { vel: 0.015, decay: 0.25 });
+  giggle(T + 5.0, 420, 0.08, -0.2); giggle(T + 5.6, 460, 0.07, -0.2);
+  melody(SND, V('saw', { a: 0.3, s: 0.9, r: 0.5, lp: 0.03, vel: 0.1, gate: 1 }), T + 6.2, 60, 'E2+B2 - - - - - - -', 0.5);
+  heartbeat(T + 6.3, 0.2); heartbeat(T + 7.1, 0.2); heartbeat(T + 7.9, 0.22);
+  ha(T + 7.6, 380, 0.04, 0); ha(T + 8.1, 360, 0.035, 0);
+  melody(M, chime, T + 8.8, 150, 'E4 G4 B4 D5 G5 B5', 0.25);
+  noiseFx(FX, T + 8.6, 0.8, (u) => 0.05 + u * 0.4, (u) => u, 0, 0.12);
+  zip(T + 9.3, 0.15);
+  for (let k = 0; k < 4; k++) bell(FX, T + 9.8 + k * 0.3, 'E6', { ratio: 2.76, index: 3, decay: 1.8, vel: 0.13 });
+  crash(M, T + 10.0, 0.2, 2); whoosh(T + 9.95, 0.8, 0.3); melody(SND, pad, T + 10.0, 60, 'E3+G#3+B3+E4 - - - - -', 0.5);
+  for (let k = 0; k < 6; k++) wood(T + 10.3 + k * 0.12, 700 - k * 30, 0.1);
+  sweep(FX, T + 10.1, 0.25, 500, 1400, { type: 'square', vel: 0.06 });
+  melody(M, V('pulse', { duty: 0.25, vel: 0.08, a: 0.002, r: 0.02 }), T + 11.6, 160, 'B5 A5 G5 F#5 E5 D5 C5 B4 A4 G4 F#4 E4', 0.25);
+  for (let t = 11.6; t < 13.4; t += 0.09) click(T + t, 400, 0.08, -0.4);
+  noiseFx(FX, T + 12.3, 0.4, () => 0.8, (u) => Math.exp(-u * 5), 0, 0.2); for (let k = 0; k < 6; k++) bell(FX, T + 12.32 + k * 0.05, ['E7', 'C7', 'G7', 'D7', 'A6', 'F7'][k], { vel: 0.03, decay: 0.3 });
+  bell(M, T + 14.0, 'G5', { vel: 0.06 });
 
   // ===== S8: friendship =====
   T = S(8);
   rainAmb(T, T + 7.2, 0.08);
   sweep(FX, T + 0.2, 0.5, 120, 90, { type: 'square', wobble: true, vel: 0.05 });
-  sweep(FX, T + 1.6, 0.18, 500, 800, { type: 'tri', vel: 0.06 });
-  noiseFx(FX, T + 4.1, 0.3, () => 0.05, (u) => Math.exp(-u * 4), 0, 0.3);
+  sweep(FX, T + 1.5, 0.18, 500, 800, { type: 'tri', vel: 0.06 });
+  noiseFx(FX, T + 3.8, 0.3, () => 0.05, (u) => Math.exp(-u * 4), 0, 0.3); sweep(FX, T + 3.8, 0.25, 300, 700, { type: 'tri', vel: 0.06 });
   theme(T + 4.2, 84, ['A', 'B'], 5, { fn: box, leadBus: M, bass: false });
   melody(M, V('tri', { a: 0.01, r: 0.1, vel: 0.14, gate: 0.8 }), T + 4.2, 84, 'F2 . . . C3 . . . D2 . . . A2 . . . Bb2 . . . F2 . . . C3 . . . C3 . . .', 0.5);
   crackle(T + 7, T + 14, 0.05);
   noiseFx(FX, T + 7.4, 0.3, () => 0.4, (u) => Math.sin(Math.PI * u) * (0.5 + 0.5 * Math.sin(u * 50)), 0, 0.1);
   melody(M, chime, T + 8.8, 150, 'A5 C6 F6 A6', 0.25); giggle(T + 8.85, 700, 0.07, 0); giggle(T + 9.2, 800, 0.06, 0.2);
   for (let k = 0; k < 4; k++) noiseFx(FX, T + 9.2 + k * 0.18, 0.05, () => 0.7, (u) => 1 - u, 0, 0.1);
-  thud(T + 10.4, 0.25); thud(T + 10.62, 0.25);
-  sweep(FX, T + 10.9, 0.4, 150, 110, { type: 'square', wobble: true, vel: 0.04 });
+  thud(T + 10.7, 0.25); thud(T + 10.92, 0.25);
+  sweep(FX, T + 11.2, 0.4, 150, 110, { type: 'square', wobble: true, vel: 0.04 });
   sweep(FX, T + 11.1, 0.08, 700, 900, { type: 'square', vel: 0.05 }); sweep(FX, T + 11.2, 0.08, 900, 1200, { type: 'square', vel: 0.05 });
   bell(M, T + 12.6, 'F6', { vel: 0.07, decay: 0.6 }); bell(M, T + 13.0, 'C7', { vel: 0.05, decay: 1 });
 
@@ -292,24 +296,22 @@ export function renderScore() {
   T = S(12);
   melody(M, piz, T + 0.1, 132, spyBass + ' ' + spyBass, 0.5);
   melody(M, stab, T + 0.1, 132, '. E4+G4 . . . E4+G4 . . . E4+A4 . . . E4+Bb4 . . . E4+G4 . . . E4+G4 . . . E4+A4 . . . D#4+B4 . .', 0.5);
-  for (let t = 0.3; t < 3.3; t += 0.26) pluck(FX, T + t, 'E5', { vel: 0.08, len: 0.1 });
+  for (let t = 0.3; t < 3.2; t += 0.26) pluck(FX, T + t, 'E5', { vel: 0.08, len: 0.1 });
   click(T + 3.8, 900, 0.15);
   noiseFx(FX, T + 3.9, 0.3, () => 0.2, (u) => u, 0, 0.1);
-  noiseFx(FX, T + 4.3, 1.1, (u) => 0.5 - 0.45 * u, (u) => Math.exp(-u * 1.5), 0, 0.25); sweep(FX, T + 4.3, 1.0, 900, 200, { type: 'square', wobble: true, vel: 0.05 });
+  noiseFx(FX, T + 4.2, 1.1, (u) => 0.5 - 0.45 * u, (u) => Math.exp(-u * 1.5), 0, 0.25); sweep(FX, T + 4.2, 1.0, 900, 200, { type: 'square', wobble: true, vel: 0.05 });
   boing(T + 5.2, 0.12);
   piano(M, T + 5.6, 'E2', { vel: 0.3 }); piano(M, T + 5.6, 'F2', { vel: 0.25 });
   bell(FX, T + 5.7, 'B6', { vel: 0.05, decay: 0.3 }); bell(FX, T + 5.85, 'E7', { vel: 0.05, decay: 0.3 }); bell(FX, T + 6.0, 'G7', { vel: 0.05, decay: 0.3 });
-  click(T + 7.0, 1500, 0.15); sweep(FX, T + 7.1, 0.3, 1600, 200, { vel: 0.1 }); clang(T + 7.45, 0.3);
-  whoosh(T + 7.4, 0.7, 0.3); crash(M, T + 7.45, 0.2, 2); melody(SND, pad, T + 7.45, 60, 'E3+G#3+B3+E4 - - -', 0.5);
-  for (let k = 0; k < 4; k++) wood(T + 8.0 + k * 0.12, 700 - k * 40, 0.1);
+  click(T + 7.0, 1500, 0.15); sweep(FX, T + 7.05, 0.3, 1600, 200, { vel: 0.1 }); clang(T + 7.4, 0.3);
+  whoosh(T + 7.3, 0.7, 0.3); crash(M, T + 7.4, 0.2, 2); melody(SND, pad, T + 7.4, 60, 'E3+G#3+B3+E4 - - -', 0.5);
   noiseFx(FX, T + 8.6, 0.6, (u) => 0.2 - 0.15 * u, (u) => Math.exp(-u * 4), 0, 0.35); sweep(FX, T + 8.62, 0.4, 200, 60, { vel: 0.2 });
-  sweep(FX, T + 9.6, 0.35, 600, 1800, { type: 'square', vel: 0.07 }); sweep(FX, T + 9.95, 0.3, 1500, 1900, { type: 'square', vel: 0.06 });
-  melody(M, V('pulse', { duty: 0.25, vel: 0.08, a: 0.002, r: 0.02 }), T + 11.2, 170, 'B5 A5 G5 F#5 E5 D5 C5 B4 A4 G4 F#4 E4 D4 C4', 0.25);
-  for (let t = 11.2; t < 14.5; t += 0.07) click(T + t, 380, 0.06, -0.4);
-  thud(T + 12.8, 0.3); boing(T + 12.85, 0.1);
-  for (let k = 0; k < 4; k++) giggle(T + 12.3 + k * 0.45, 600 + k * 40, 0.06, (k % 2 ? 0.4 : -0.4));
-  noiseFx(FX, T + 13.55, 0.06, () => 0.9, (u) => 1 - u, 0, 0.3);
-  melody(M, brass, T + 14.4, 140, 'C4+E4+G4 - C5+E5+G5 - - -', 0.5);
+  sweep(FX, T + 9.4, 0.35, 600, 1800, { type: 'square', vel: 0.07 }); sweep(FX, T + 9.75, 0.3, 1500, 1900, { type: 'square', vel: 0.06 });
+  melody(M, V('pulse', { duty: 0.25, vel: 0.08, a: 0.002, r: 0.02 }), T + 10.8, 170, 'B5 A5 G5 F#5 E5 D5 C5 B4 A4 G4 F#4 E4', 0.25);
+  for (let t = 10.8; t < 12.8; t += 0.07) click(T + t, 380, 0.06, 0.4);
+  for (let k = 0; k < 3; k++) giggle(T + 11.0 + k * 0.45, 600 + k * 40, 0.06, (k % 2 ? 0.4 : -0.4));
+  noiseFx(FX, T + 12.15, 0.06, () => 0.9, (u) => 1 - u, 0, 0.3);
+  melody(M, brass, T + 12.2, 140, 'C4+E4+G4 - C5+E5+G5 -', 0.5);
 
   // ===== S13: finale (the theme finally resolves) =====
   T = S(13);
@@ -317,10 +319,12 @@ export function renderScore() {
   melody(M, box, T + 0.6, 80, 'E5 - G5 - A5 - C6 - F5 - E5 - D5 - G5 - C5 - - - - - . .', 0.5);
   melody(M, pno, T + 0.6, 80, 'C4 . . . A3 . . . F3 . . . G3 . . . C3 - - - - - . .', 0.5);
   bell(M, T + 2.0, 'E7', { vel: 0.04, decay: 1 }); bell(M, T + 2.2, 'G7', { vel: 0.03, decay: 1 });
-  for (let k = 0; k < 3; k++) noiseFx(FX, T + 1.3 + k * 0.2, 0.05, () => 0.7, (u) => 1 - u, 0, 0.06);
-  bell(M, T + 5.4, 'C5', { ratio: 2, index: 1, decay: 3, vel: 0.12 }); bell(M, T + 5.4, 'G5', { ratio: 2, index: 1, decay: 3, vel: 0.08 });
-  rainAmb(T + 7.5, T + 9.0, 0.05);
-  melody(M, V('square', { duty: 0.5, lp: 0.08, vel: 0.08, a: 0.02, vib: 0.35, vibDelay: 0.15 }), T + 7.6, 110, 'D3 - C#3 - C3 - - -', 0.5);
+  bell(M, T + 5.6, 'C5', { ratio: 2, index: 1, decay: 3, vel: 0.12 }); bell(M, T + 5.6, 'G5', { ratio: 2, index: 1, decay: 3, vel: 0.08 });
+  // cast roll: a little chime for each character
+  ['C5', 'E5', 'G5', 'A5', 'C6', 'E6'].forEach((n, i) => { bell(M, T + 6.5 + i * 0.35, n, { vel: 0.08, decay: 0.8 }); sweep(FX, T + 6.5 + i * 0.35, 0.12, 300, 600, { type: 'tri', vel: 0.05 }); });
+  melody(M, V('tri', { a: 0.01, r: 0.2, vel: 0.14, gate: 0.9 }), T + 6.5, 120, 'C4 . G3 . A3 . E3 . F3 . C4 . G3 . . .', 0.5);
+  rainAmb(T + 10.4, T + 15, 0.05);
+  melody(M, V('square', { duty: 0.5, lp: 0.08, vel: 0.08, a: 0.02, vib: 0.35, vibDelay: 0.15 }), T + 12.4, 110, 'D3 - C#3 - C3 - - -', 0.5);
 
   // ---------- mix ----------
   const rv = reverb(SND, 0.9, 0.86, 0.35);

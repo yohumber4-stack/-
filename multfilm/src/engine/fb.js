@@ -51,7 +51,8 @@ export class FB {
     u[i] += ((c >> 16) & 255) * k;
     u[i + 1] += ((c >> 8) & 255) * k;
     u[i + 2] += (c & 255) * k;
-    u[i + 3] = 255;
+    if (u[i + 3] === 0 || u[i + 3] === 254) u[i + 3] = 254; // additive light on a transparent layer
+    else u[i + 3] = 255;
   }
 
   rect(x, y, w, h, c, a = 1) {
@@ -208,6 +209,7 @@ export class FB {
         if (flip) sxi = sw - 1 - sxi;
         const si = (syi * sw + sxi) << 2;
         if (su[si + 3] === 0) continue;
+        if (su[si + 3] === 254 && solid === undefined) { const di2 = (ty * this.w + tx) << 2; du[di2] += su[si]; du[di2 + 1] += su[si + 1]; du[di2 + 2] += su[si + 2]; if (du[di2 + 3] === 0) du[di2 + 3] = 254; continue; }
         let r = su[si], g = su[si + 1], b = su[si + 2];
         if (solid !== undefined) { r = (solid >> 16) & 255; g = (solid >> 8) & 255; b = solid & 255; }
         else if (tint !== undefined && tk > 0) {

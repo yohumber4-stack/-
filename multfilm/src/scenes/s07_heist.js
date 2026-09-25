@@ -1,199 +1,147 @@
-// The night heist. Qwen lines up cardboard "customers" at Clawd's ASK hatch;
-// sleepy Clawd answers them all, and every glowing answer flies into Qwen's
-// distillery. Gemini sees it, hesitates... and rings the bell, flooding the
-// yard with light. The decoys topple, Qwen flees.
-import { E, seg, clamp, lerp, hash, mix, key } from '../engine/core.js';
-import { vignette, LightMap, rain, stars, smoke, speedLines } from '../engine/fx.js';
+// The night heist at Clawd's cottage. Qwen lines up cardboard copies at the ASK
+// hatch; sleepy Clawd answers them all and every glowing answer flies into Qwen's
+// distillery. Gemini, hiding behind a barrel, remembers the laughter... and rings
+// the bell. Light floods the yard, the copies topple, Qwen flees.
+import { yardWorld, YD } from '../world/yard.js';
+import { r3d, actor, billboard, worldLights, rgbf } from '../world/stage.js';
+import { skyDome } from '../engine/sky.js';
+import { E, seg, clamp, lerp, hash, mix, step } from '../engine/core.js';
+import { vignette, smoke, speedLines, burst } from '../engine/fx.js';
 import { text } from '../engine/font.js';
-import { cloud } from '../bg.js';
-import { distiller, decoy, woodSign, thought, claudeSpark } from '../props.js';
-import { cottage, fence } from '../world/cottage.js';
-import { gemini } from '../chars/gemini.js';
-import { qwen } from '../chars/qwen.js';
-import { whale } from '../chars/extras.js';
-import { float, hop, eyesB } from '../kit.js';
+import { emote, bubble, thoughtBubble, label } from '../sprites/props.js';
+import { char } from '../sprites/chars.js';
+import { decoy, distillery, answerOrb, questionNote, bellSwing } from '../sprites/heist.js';
+import { woodSign } from '../props.js';
+import { hop, float, blink, bounce } from '../kit.js';
 
-const GY = 232, HX = 290;
-const QUEUE = [404, 382, 360, 338, 316, 294];
-
-function yard(fb, t, flare) {
-  fb.gradV(0, 0, 480, 150, [0x070a1a, 0x121838, 0x1e2650]);
-  stars(fb, t, 71, 60, 0, 0, 480, 80, { alpha: 0.5 });
-  fb.glow(420, 34, 30, 0xbfd0ff, 0.25);
-  for (let i = 0; i < 5; i++) cloud(fb, ((i * 130 + t * 6) % 640) - 80, 26 + (i % 2) * 20, 130, 0x1a2140, 0x131830, i + 21, 0.9);
-  fb.rect(0, 150, 480, 82, 0x151a2c);
-  for (let x = 0; x < 480; x += 40) fb.poly([x, 160, x + 20, 144 + (x % 80 ? 4 : 0), x + 40, 160], 0x10142a);
-  fence(fb, 0, HX - 10, 216, 0x4a4050);
-  fb.rect(0, GY, 480, 38, 0x2a2a34);
-  for (let x = 0; x < 480; x += 14) fb.rect(x + ((x / 14) % 2) * 7, GY + 6, 10, 1, 0x34343f);
-}
+const NIGHT = [0x3a4280, 0x242c62, 0x141a44, 0x0a0e2a];
+const QUEUE = [56.5, 59.5, 62.5, 65.5, 68.5, 71.5];
+const DIST = [66, 1, 23];
 
 export default {
   dur: 16,
   in: { type: 'black', dur: 0.6 },
   render(fb, t) {
-    if (t >= 3.0 && t < 5.0) return qwenInsert(fb, t);
-    if (t >= 5.0 && t < 9.0) return barrelShot(fb, t);
-    const flare = seg(t, 9.7, 10.0) * (1 - 0.6 * seg(t, 12.5, 14.5));
-    yard(fb, t, flare);
-    const lamp = seg(t, 14.2, 14.5);
-    const bellSwing = t > 9.4 && t < 11.2 ? Math.sin((t - 9.4) * 18) * (1 - seg(t, 10.4, 11.2)) : 0;
-    const hatchOpen = t > 1.5 && t < 9.7 ? 0.5 + 0.5 * Math.sin(t * 10) : 0;
-    const C = cottage(fb, HX, GY, { t, lamp, writing: t > 1.5 && t < 9.7, bellSwing, hatch: hatchOpen });
+    const Wd = yardWorld();
+    const shot = t < 3.0 ? 'A' : t < 4.8 ? 'B' : t < 6.2 ? 'Q' : t < 9.3 ? 'C' : t < 11.2 ? 'D' : 'E';
+    if (shot === 'A' || shot === 'E') r3d.camera([63, 6.0, 12.5], [58.5, 2.8, 29], 56);
+    else if (shot === 'B') r3d.camera([55.5, 4.0, 22.5], [54, 3.5, 30], 55);
+    else if (shot === 'Q') r3d.camera([63.5, 3.0, 17.0], [63.8, 2.4, 24], 54);
+    else if (shot === 'C') r3d.camera([6, 3.6, 7.5], [14, 3.0, 22], 55);
+    else r3d.camera([47.5, 4.8, 17.5], [47.5, 3.8, 30], 55);
+    r3d.clear();
+    const flare = seg(t, 10.0, 10.25) * (1 - 0.55 * seg(t, 12.5, 15)) * (shot === 'D' ? 0.3 : 1);
+    skyDome(fb, r3d, t, { stops: NIGHT, stars: 220, moon: [2.6, 0.7, 7], span: 0.6 });
+    r3d.ambient = [0.34 + flare * 0.9, 0.36 + flare * 0.9, 0.54 + flare * 0.7];
+    r3d.sun = { dir: [-0.3, 0.8, -0.5], color: [0.25, 0.3, 0.5] };
+    r3d.points = worldLights(Wd.lights, 1.3);
+    const hatchOn = t < 10.0;
+    r3d.points.push({ p: [52.5, 4, 28.5], c: rgbf(0xffc27a, hatchOn ? 0.9 : 0.6), r: 10 });
+    r3d.points.push({ p: [DIST[0] - 1.5, 2, DIST[2]], c: rgbf(0xffa060, t < 12.4 ? 1.4 : 0.4), r: 9 });
+    if (flare > 0) r3d.points.push({ p: [44, 5, 26], c: rgbf(0xf4f8ff, 2.8 * flare), r: 40 });
+    r3d.drawMesh(fb, Wd.mesh);
+    r3d.drawMesh(fb, Wd.litMesh);
+    r3d.drawMesh(fb, t > 11 ? Wd.lampOn : Wd.lampOff);
+    r3d.fog(fb, 0x141a3a, 40, 120, 0.5);
 
-    // the distillery
-    const broken = seg(t, 13.1, 13.3);
-    const bottles = t < 13.0 ? Math.min(4, 1 + Math.floor((t - 1.5) / 1.4)) : 0;
-    distiller(fb, 60, GY, t, { broken, bottles, liquid: 0xffa060, out: 0x9d7bff });
-    if (broken > 0) { smoke(fb, t, 13.2, 90, GY - 6, { n: 6, color: 0x9d7bff, size: 6 }); }
-    const funnel = [74, GY - 34];
-    fb.poly([funnel[0] - 8, funnel[1] - 8, funnel[0] + 8, funnel[1] - 8, funnel[0] + 2, funnel[1] + 2, funnel[0] - 2, funnel[1] + 2], broken ? 0x6a6a74 : 0x9aa0b0);
-
-    // decoys slide into the queue on a rope, then topple like dominoes when the light hits
+    // sign with the count of fake accounts
+    billboard(fb, [74, 1, 25], (L, x, y) => woodSign(L, x, y - 22, '...×25 000', { font: 'small', post: 14, color: 0x8a6a4a, ink: 0xfff0d0 }), { bias: 0.2 });
+    // distillery
+    const levels = [0, 1, 2].map((i) => clamp((t - 1.8 - i * 1.3) / 1.6));
+    const broken = seg(t, 12.3, 12.5);
+    billboard(fb, DIST, (L, x, y) => distillery(L, x, y, t, { levels: t > 12.3 ? [0, 0, 0] : levels, broken }), { bias: 0.3 });
+    if (broken > 0) { const p = r3d.project(DIST[0] - 1, 1.5, DIST[2]); if (p) smoke(fb, t, 12.35, p[0], p[1], { n: 7, color: 0x9d7bff, size: 7 }); }
+    // the queue of cardboard copies (topple like dominoes when the light hits)
     const slide = E.outCubic(seg(t, 0.0, 1.6));
     QUEUE.forEach((qx, i) => {
-      const x = lerp(qx - 260, qx, slide);
-      const fall = seg(t, 10.0 + i * 0.12, 10.35 + i * 0.12);
-      decoy(fb, x, GY + 2, { variant: i, fall });
+      const fall = seg(t, 10.3 + i * 0.12, 10.65 + i * 0.12);
+      billboard(fb, [qx + (1 - slide) * 18, 1, 26.5], (L, x, y) => decoy(L, x, y, i, fall), { bias: 0.4 });
     });
-    if (slide >= 1 && t < 10) woodSign(fb, 262, GY - 26, '...×25 000', { font: 'small', post: 20, color: 0x8a6a4a, ink: 0xfff0d0 });
-
-    // question notes go in, glowing answers arc into the funnel
-    if (t > 1.5 && t < 9.7) {
-      const period = Math.max(0.35, 0.9 - (t - 1.5) * 0.09);
-      const n = Math.floor((t - 1.5) / period);
-      for (let k = n - 2; k <= n; k++) {
+    // Clawd behind the hatch, sleepy (nightcap), writing answers
+    if (hatchOn || t > 10) {
+      const awake = t > 10.1;
+      actor(fb, [52.6, 2.6, 30.7], 'clawd', { acc: 'nightcap', eyes: awake ? 'wide' : t % 2.6 < 0.2 ? 'blink' : 'closed', mouth: awake ? 'o' : 'smile', armL: !awake && Math.sin(t * 14) > 0 ? -4 : 0, armR: !awake && Math.sin(t * 14 + 1) > 0 ? -4 : 0, blush: !awake }, { scale: 1, shadow: false, bias: 0.05, lit: false });
+    }
+    // notes in, answers out along an arc to the funnel
+    if (t > 1.4 && t < 10.0) {
+      const period = Math.max(0.3, 0.8 - (t - 1.4) * 0.08);
+      const n = Math.floor((t - 1.4) / period);
+      for (let k = n - 3; k <= n; k++) {
         if (k < 0) continue;
-        const lt = (t - 1.5 - k * period) / period;
-        if (lt < 0 || lt > 2) continue;
-        if (lt < 0.5) { const q = lt / 0.5; const px = lerp(QUEUE[0], C.hatch[0], q), py = lerp(GY - 28, C.hatch[1], q) - Math.sin(q * Math.PI) * 10; fb.rect(px - 2, py - 2, 5, 4, 0xf4f4f4); text(fb, '?', px, py - 2, 0x3a3a50, { font: 'small', align: 'center' }); }
+        const lt = (t - 1.4 - k * period) / period;
+        if (lt < 0 || lt > 2.5) continue;
+        if (lt < 0.5) { const q = lt / 0.5; const p = r3d.project(lerp(QUEUE[0], 53, q), lerp(3, 4, q) + Math.sin(q * Math.PI), lerp(26.5, 29.5, q)); if (p) questionNote(fb, p[0], p[1]); }
         else {
-          const q = (lt - 0.5) / 1.5;
-          const px = lerp(C.hatch[0], funnel[0], q), py = lerp(C.hatch[1], funnel[1] - 6, q) - Math.sin(q * Math.PI) * 70;
-          for (let tr = 1; tr <= 4; tr++) { const q2 = Math.max(0, q - tr * 0.03); const tx = lerp(C.hatch[0], funnel[0], q2), ty = lerp(C.hatch[1], funnel[1] - 6, q2) - Math.sin(q2 * Math.PI) * 70; fb.add(tx, ty, 0xffa36b, 0.5 - tr * 0.1); }
-          fb.glow(px, py, 12, 0xffa36b, 0.8, 4);
-          fb.rect(px - 4, py - 3, 9, 7, 0xffe2c8); fb.rect(px - 4, py - 3, 9, 1, 0xffffff); claudeSpark(fb, px, py, 2, 0xd97757);
+          const q = Math.min(1, (lt - 0.5) / 1.8);
+          const p = r3d.project(lerp(53, DIST[0] - 2, q), lerp(4, 5, q) + Math.sin(q * Math.PI) * 4, lerp(29.5, DIST[2], q));
+          if (p && q < 1) answerOrb(fb, p[0], p[1]);
         }
       }
     }
-
-    // Qwen at the lever
-    let qx = 150, qo = { u: 1, spy: true, eyes: 'shifty', look: 1, arms: ['down', 'hold'], t };
-    if (t < 9.7) { qo.arms = Math.sin(t * 6) > 0 ? ['hold', 'down'] : ['down', 'hold']; if (bottles >= 3) qo.mouth = 'smirk'; }
-    else if (t < 13.0) { qo.mouth = 'open'; qo.sweat = true; qo.fur = 1; qo.arms = 'up'; qx += Math.sin(t * 50) * 1; }
-    else {
-      const k = E.inQuad(seg(t, 13.0, 14.0));
-      qx = lerp(150, -40, k); qo.walk = t * 6; qo.mouth = 'open'; qo.arms = 'flail'; qo.hat = false; qo.lean = -1;
-      speedLines(fb, t, GY - 30, GY - 4, 0xffffff, 0.25, 8, -1);
+    // Qwen
+    let qp = [DIST[0] - 4, 1, DIST[2] - 1.0], qo = { spy: true, eyes: 'shifty', mouth: 'smirk', rub: 1, t }, qd = { scale: 1 };
+    if (shot === 'Q') qd = { scale: 2, shadow: false, dy: 30 };
+    if (t > 10.1 && t < 11.6) { qo = { spy: true, eyes: 'shock', mouth: 'scream', handL: -14, handR: -14 }; qp = [DIST[0] - 4, 1 + hop(t, 10.2, 0.4, 1.5), DIST[2] - 1.0]; }
+    if (t >= 11.6) {
+      const k = E.inQuad(seg(t, 11.6, 13.4));
+      qp = [lerp(DIST[0] - 4, 49, k), 1 + Math.abs(Math.sin(t * 14)) * 0.4, lerp(DIST[2] - 1.0, 15.5, k)];
+      qo = { spy: true, hat: false, eyes: 'shock', mouth: 'scream', handL: Math.sin(t * 20) > 0 ? -14 : 0, handR: Math.sin(t * 20) > 0 ? 0 : -14 };
     }
-    if (qx > -30) qwen(fb, qx, GY + 1, qo);
-    // fedora flies off and lands on the ground
-    if (t > 13.3) {
-      const k = seg(t, 13.3, 13.9);
-      const hx = lerp(150, 176, k), hy = lerp(GY - 34, GY - 4, E.outBounce(k)) - Math.sin(k * Math.PI) * 20;
-      fb.rect(hx - 8, hy + 2, 16, 2, 0x3f3530); fb.rect(hx - 5, hy - 3, 10, 5, 0x3f3530); fb.rect(hx - 5, hy, 10, 1, 0x8c2f39);
+    if (t < 13.4) {
+      const qs = actor(fb, qp, 'qwen', qo, qd);
+      if (qs && shot === 'Q' && t > 5.0) emote(fb, 'note', qs.x - 70, qs.y - 150 - ((t * 20) % 8), { scale: 2 });
+      if (qs && t >= 11.6) speedLines(fb, t, qs.y - 50, qs.y, 0xffffff, 0.3, 10, 1);
     }
-
-    // Gemini: zips to the bell and flares
-    if (t > 9.0) {
-      const k = E.outCubic(seg(t, 9.0, 9.45));
-      const gx = lerp(-30, C.bell[0] - 18, k), gy = lerp(200, C.bell[1] + 18, k) + float(t, 1, 3);
-      if (k < 1) speedLines(fb, t, gy - 10, gy + 10, 0xffffff, 0.4, 8, 1);
-      const pointing = t > 13.4;
-      gemini(fb, gx, gy, { size: 40, sat: 0.35 + 0.4 * flare, bright: flare * 0.35, eyes: pointing ? 'determined' : 'determined', mouth: t > 9.5 && t < 10.6 ? 'open' : 'flat', armR: t < 10.6 ? 0.8 + Math.sin(t * 20) * 0.4 : 0, armL: pointing ? 0.6 : 0, look: pointing ? -1 : 1 });
-      if (t > 9.5 && t < 10.9) {
-        const a = Math.floor(t * 4) % 2 ? 1 : 0.6;
-        text(fb, 'ДИНЬ!', C.bell[0] + 8, C.bell[1] - 26 + (Math.floor(t * 4) % 2) * 3, mix(0x303040, 0xffe08a, a), { scale: 2, outline: 0x1a1a2a });
+    if (t > 11.7) { // the fedora flies off and lands
+      const k = seg(t, 11.7, 12.3);
+      billboard(fb, [DIST[0] - 4 - k * 2, 1 + (1 - E.outBounce(k)) * 3 + Math.sin(k * Math.PI) * 2, DIST[2] - 1.0], (L, x, y) => { L.rect(x - 9, y - 3, 18, 3, 0x2e2622); L.rect(x - 6, y - 9, 12, 6, 0x2e2622); L.rect(x - 6, y - 5, 12, 2, 0x8c2f39); });
+    }
+    // Gemini
+    if (shot === 'C') {
+      const lt = t - 6.2;
+      billboard(fb, [10.5, 1, 14.2], (L, x, y) => barrel2d(L, x, y), { bias: 0.2, lit: true, lift: 0.45 });
+      const peek = lt < 0.5 ? E.outCubic(lt / 0.5) : lt < 1.2 ? 1 : lt < 1.5 ? 0.5 : lt < 2.6 ? 0.5 : 1.2;
+      const brave = lt > 2.6;
+      const gs = actor(fb, [10.9 - peek * 1.7, 1.2 + float(t, 0.1, 2), 15.6], 'gemini', {
+        eyes: lt < 1.2 ? 'wide' : lt < 2.6 ? (lt > 2.2 ? 'closed' : 'sad') : 'determined', mouth: lt < 1.2 ? 'o' : lt < 2.6 ? 'wobble' : 'flat', grey: brave ? 0.25 - 0.25 * seg(lt, 2.6, 3.0) : 0.5, bright: brave ? 0.25 : 0, lookX: -1,
+      }, { scale: 1, groundY: 1, lift: 0.55, glow: brave ? 0.2 : 0 });
+      if (gs && lt > 1.3 && lt < 2.5) {
+        const tb = thoughtBubble(fb, gs.x + 30, gs.y - 130, 120, 70, gs.x + 16, gs.y - 56);
+        char(fb, 'deepseek', tb.cx - 20, tb.cy + 18, { eyes: 'happy', mouth: 'laugh' }, { scale: 0.5 });
+        char(fb, 'kimi', tb.cx + 22, tb.cy + 18, { eyes: 'happy', mouth: 'laugh' }, { scale: 0.5 });
+        text(fb, 'ХА-ХА', tb.cx, tb.cy - 22, 0x2a2a3a, { align: 'center' });
+      }
+      if (gs && brave) { for (let i = 0; i < 6; i++) { const a = t * 3 + i * 1.05; fb.add(gs.x + Math.cos(a) * 36, gs.y - 28 + Math.sin(a) * 30, 0xffffff, 1); } emote(fb, 'spark', gs.x + 30, gs.y - 64, { scale: 2 }); }
+    }
+    if (shot === 'D' || shot === 'E') {
+      const k = E.outCubic(seg(t, 9.3, 9.8));
+      const gx = lerp(40, 44.2, k), gy = lerp(2.5, 4.3, k) + float(t, 0.1, 3);
+      const ringing = t > 9.8 && t < 11.0;
+      const gs = actor(fb, [gx, gy, 27.8], 'gemini', { eyes: ringing ? 'closed' : t > 11 ? 'determined' : 'determined', mouth: ringing ? 'open' : 'flat', handR: ringing ? (Math.sin(t * 30) > 0 ? -14 : -6) : 0, bright: flare * 0.3, grey: 0 }, { scale: 1, groundY: 1, lift: 0.6, glow: 0.2 * flare });
+      if (k < 1 && gs) speedLines(fb, t, gs.y - 50, gs.y, 0xffffff, 0.4, 8, 1);
+      const bp = r3d.project(44.4, 6.4, 28.6);
+      if (bp) bellSwing(fb, bp[0], bp[1], ringing ? Math.sin((t - 9.8) * 22) * (1 - seg(t, 10.4, 11.0)) : 0);
+      if (ringing && bp) {
+        const a = Math.floor(t * 6) % 2;
+        text(fb, 'ДИНЬ-ДОН!', bp[0], bp[1] - 40 - a * 2, a ? 0xffe08a : 0xffffff, { scale: 2, align: 'center', outline: 0x1a1a2a });
+        if (t > 10.0) burst(fb, t, 10.0, bp[0], bp[1] + 20, { colors: [0xea4335, 0x4285f4, 0xfbbc04, 0x34a853], n: 40, speed: 140, gravity: 0, life: 0.9, flash: 60 });
       }
     }
-
-    // lighting
-    const L = new LightMap().reset(0.42 + flare * 0.9, 0.44 + flare * 0.9, 0.62 + flare * 0.8);
-    L.light(C.hatch[0], C.hatch[1], 70, 0xffc27a, 0.9 * (hatchOpen * 0.5 + 0.5) * (t < 9.7 ? 1 : 0.3));
-    L.light(80, GY - 14, 60, 0xffa060, broken ? 0.2 : 0.8);
-    L.light(C.win[0], C.win[1], 50, 0xffc27a, 0.3 + lamp * 1.0);
-    if (lamp > 0) L.light(C.lamp[0], C.lamp[1], 90, 0xfff0b0, lamp);
-    if (flare > 0) L.light(C.bell[0] - 18, C.bell[1] + 18, 420, 0xf4f8ff, 1.2 * flare);
-    L.apply(fb, 9);
-    if (flare > 0) { fb.glow(C.bell[0] - 18, C.bell[1] + 18, 60 * flare, 0xffffff, 0.8 * flare, 6); if (t < 10.05) fb.overlay(0xffffff, seg(t, 9.7, 9.8) * (1 - seg(t, 9.8, 10.05)) * 0.8); }
-    rain(fb, t, { n: 90, speed: 280, angle: 0.15, len: 5, ground: GY + 30, alpha: 0.35 });
+    r3d.outline(fb, 0.6);
+    r3d.bloom(fb, 0.55, 3);
+    if (t > 10.0 && t < 10.35) fb.overlay(0xffffff, (1 - seg(t, 10.0, 10.35)) * 0.5);
     vignette(fb, 0.45);
   },
 };
 
-// insert: Qwen at the distillery, rubbing his paws as the bottles fill
-function qwenInsert(fb, t) {
-  const lt = t - 3;
-  fb.gradV(0, 0, 480, 270, [0x0a0e20, 0x151a30, 0x1e2236]);
-  fence(fb, 0, 480, 200, 0x3a3444);
-  fb.rect(0, 236, 480, 34, 0x24242e);
-  // big flask, coil and bottles
-  const fx = 300, fy = 170;
-  fb.rect(fx - 70, 232, 200, 5, 0x5a4636);
-  fb.circle(fx, fy, 34, 0xbfe3f0); fb.circle(fx, fy, 29, 0xff9a50);
-  for (let i = 0; i < 10; i++) { const b = (lt * 1.4 + hash(i)) % 1; fb.circle(fx - 20 + hash(i * 3) * 40, fy + 20 - b * 44, 1 + (i % 2), 0xffe0c0); }
-  fb.rect(fx - 6, fy - 70, 12, 40, 0xbfe3f0);
-  fb.poly([fx - 26, fy - 96, fx + 26, fy - 96, fx + 7, fy - 70, fx - 7, fy - 70], 0x9aa0b0);
-  for (let i = 0; i < 5; i++) fb.ring(fx + 70, fy - 30 + i * 14, 10, 0x9fc9d8, 2);
-  fb.line(fx + 6, fy - 64, fx + 70, fy - 44, 0xbfe3f0);
-  for (let i = 0; i < 3; i++) {
-    const bx = fx + 100 + i * 26, level = Math.min(1, Math.max(0, (lt - i * 0.5) / 1.2));
-    fb.rect(bx, 196, 20, 36, 0x2a2a3a); fb.rect(bx + 2, 198 + 32 * (1 - level), 16, 32 * level, 0x9d7bff); fb.rect(bx + 6, 186, 8, 10, 0x2a2a3a);
-    fb.rect(bx + 1, 208, 18, 9, 0xf3f3f7); text(fb, 'QWEN', bx + 10, 210, 0x615ced, { font: 'small', align: 'center' });
-    fb.glow(bx + 10, 214, 22, 0x9d7bff, 0.5 * level);
+function barrel2d(fb, x, y) {
+  const w = 48, h = 60, X = x - w / 2, Y = y - h;
+  fb.rect(X - 1, Y - 1, w + 2, h + 2, 0x1a1210);
+  for (let yy = 0; yy < h; yy++) {
+    const bulge = Math.round(Math.sin((yy / h) * Math.PI) * 3);
+    fb.rect(X - bulge, Y + yy, w + bulge * 2, 1, yy % 11 < 2 ? 0x3a3a44 : 0x8a5a36);
   }
-  // glowing answers dropping into the funnel
-  for (let k = 0; k < 3; k++) {
-    const q = (lt * 1.3 + k / 3) % 1;
-    const px = lerp(500, fx, q), py = lerp(-10, fy - 90, q) - Math.sin(q * Math.PI) * 30;
-    fb.glow(px, py, 14, 0xffa36b, 0.8); fb.rect(px - 6, py - 4, 12, 9, 0xffe2c8); claudeSpark(fb, px, py, 3, 0xd97757);
-  }
-  qwen(fb, 120, 262, { u: 4, spy: true, eyes: 'shifty', look: 1, mouth: lt > 0.6 ? 'smirk' : 'none', arms: Math.floor(lt * 8) % 2 ? ['hold', 'hold'] : ['sneak', 'sneak'] });
-  const L = new LightMap().reset(0.45, 0.45, 0.62);
-  L.light(fx, fy, 220, 0xffa060, 0.9);
-  L.light(fx + 126, 214, 120, 0x9d7bff, 0.6);
-  L.apply(fb, 9);
-  rain(fb, t, { n: 70, speed: 280, angle: 0.15, len: 6, ground: 270, alpha: 0.3 });
-  vignette(fb, 0.5);
-}
-
-// Gemini peeking from behind a barrel across the street, finding its courage
-function barrelShot(fb, t) {
-  const lt = t - 5;
-  fb.gradV(0, 0, 480, 270, [0x070a1a, 0x10162e, 0x1a2036]);
-  // distant yard: tiny queue and the glowing arc of answers
-  fb.rect(0, 150, 480, 120, 0x141828);
-  fb.poly([60, 150, 110, 120, 160, 150], 0x7a3a24); fb.rect(66, 150, 88, 30, 0x5a5048); fb.rect(132, 158, 10, 8, 0xffc27a);
-  for (let i = 0; i < 6; i++) fb.rect(130 - i * 9, 168, 5, 12, 0x8a7050);
-  for (let k = 0; k < 4; k++) { const q = ((lt * 0.9 + k / 4) % 1); const px = lerp(137, 30, q), py = lerp(162, 172, q) - Math.sin(q * Math.PI) * 30; fb.glow(px, py, 4, 0xffa36b, 0.8); }
-  fb.glow(26, 176, 14, 0x9d7bff, 0.6);
-  // cobblestones
-  for (let y = 190; y < 270; y += 8) for (let x = ((y / 8) % 2) * 10; x < 480; x += 20) fb.rect(x, y, 18, 6, 0x1e2232);
-  // the big barrel in the foreground
-  const bx = 300, by = 262;
-  fb.rect(bx, by - 96, 110, 96, 0x6a4630); fb.rect(bx - 6, by - 84, 122, 72, 0x7a5236);
-  fb.rect(bx - 6, by - 78, 122, 4, 0x3a3a44); fb.rect(bx - 6, by - 26, 122, 4, 0x3a3a44);
-  for (let k = 1; k < 5; k++) fb.rect(bx + k * 22, by - 94, 2, 92, 0x5a3a26);
-  // Gemini peeks: forward, back, a memory of laughter, then courage
-  const peek = key(lt, [[0, 0], [0.5, 1], [1.4, 1], [1.8, 1.4], [2.1, 0.8], [3.2, 0.6], [3.6, 1.2]]);
-  const gx = bx - 4 - peek * 28, gy = 176 + float(t, 1, 2);
-  const brave = lt > 3.4;
-  gemini(fb, gx, gy, {
-    size: 70, t, sat: 0.35 + (brave ? 0.25 * seg(lt, 3.4, 3.9) : 0), bright: brave ? 0.25 * seg(lt, 3.4, 3.9) : 0,
-    eyes: lt < 1.4 ? 'wide' : lt < 3.0 ? (lt > 1.6 && lt < 2.9 ? 'sad' : 'wide') : lt < 3.4 ? 'closed' : 'determined',
-    mouth: lt < 1.4 ? 'open' : lt < 3.0 ? 'frown' : 'flat', look: lt < 1.0 ? -1 : lt < 1.3 ? 1 : -1, droop: lt > 1.6 && lt < 3.0 ? 0.4 : 0,
-    squash: lt > 3.0 && lt < 3.4 ? Math.sin((lt - 3.0) * 20) * 0.15 : 0,
-  });
-  if (lt > 1.6 && lt < 2.9) {
-    thought(fb, gx - 150, 40, 110, 64, gx - 30, gy - 30);
-    whale(fb, gx - 104, 96, { u: 1, eyes: 'laugh', mouth: 'laugh', t });
-    text(fb, 'ХА-ХА', gx - 64, 62, 0x2a2a3a, { font: 'big' });
-  }
-  if (brave) for (let i = 0; i < 4; i++) { const a = t * 3 + i * 1.57; fb.set(gx + Math.cos(a) * 44, gy + Math.sin(a) * 30, 0xffffff); }
-  const L = new LightMap().reset(0.5, 0.52, 0.7);
-  L.light(100, 150, 120, 0xffa36b, 0.5);
-  L.light(gx, gy, 90, 0xdfe8ff, brave ? 0.6 : 0.15);
-  L.apply(fb, 8);
-  rain(fb, t, { n: 110, speed: 300, angle: 0.15, len: 6, ground: 270, alpha: 0.35 });
-  vignette(fb, 0.5);
+  for (let k = 1; k < 6; k++) fb.rect(X + k * 8, Y + 2, 1, h - 4, 0x6a4028);
+  fb.rect(X + 3, Y + 3, 3, h - 6, 0xa8744a);
+  fb.ellipse(x, Y + 1, w / 2, 3, 0x5a3a26);
 }

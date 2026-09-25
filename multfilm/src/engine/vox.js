@@ -256,6 +256,7 @@ export class R3D {
       const j = i << 2;
       if (lu[j + 3] === 0) continue;
       if (depth >= zb[i]) continue;
+      if (lu[j + 3] === 254) { u[j] += lu[j]; u[j + 1] += lu[j + 1]; u[j + 2] += lu[j + 2]; continue; }
       const a = lu[j + 3] / 255;
       const r = lu[j] * mr, g = lu[j + 1] * mg, b = lu[j + 2] * mb;
       u[j] += (r - u[j]) * a; u[j + 1] += (g - u[j + 1]) * a; u[j + 2] += (b - u[j + 2]) * a;
