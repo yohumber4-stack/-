@@ -69,6 +69,71 @@
     loadId = 'load-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
   }
 
+  /* Session: one opaque id per 30-minute-inactivity session, kept in
+     sessionStorage so a tab keeps the same id across page loads. No cookie,
+     no personal data, no network call. */
+  var SESSION_KEY = 'vp_session_v1';
+  var SESSION_GAP_MS = 30 * 60 * 1000;
+  var storageOK = false;
+  try {
+    window.sessionStorage.setItem(SESSION_KEY + '_probe', '1');
+    window.sessionStorage.removeItem(SESSION_KEY + '_probe');
+    storageOK = true;
+  } catch (e) { storageOK = false; }
+
+  function newSessionId() {
+    try {
+      if (self.crypto && typeof self.crypto.randomUUID === 'function') return self.crypto.randomUUID();
+    } catch (e) {}
+    return 'sess-' + Date.now().toString(36) + '-' +
+      Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
+  }
+
+  /* In-memory session: the fallback when sessionStorage throws or is absent,
+     and the last resort if reading the stored value fails. */
+  var memSession = { id: newSessionId(), segment: 1, last_activity: Date.now() };
+
+  function readSession() {
+    if (!storageOK) return memSession;
+    try {
+      var raw = window.sessionStorage.getItem(SESSION_KEY);
+      if (!raw) return null;
+      var rec = JSON.parse(raw);
+      if (!rec || typeof rec.id !== 'string' || !rec.id) return null;
+      var seg = parseInt(rec.segment, 10);
+      var last = parseInt(rec.last_activity, 10);
+      if (!(seg >= 1) || !isFinite(last)) return null;
+      return { id: rec.id, segment: seg, last_activity: last };
+    } catch (e) { return null; }
+  }
+
+  function writeSession(rec) {
+    if (!storageOK) { memSession = rec; return; }
+    try { window.sessionStorage.setItem(SESSION_KEY, JSON.stringify(rec)); }
+    catch (e) { storageOK = false; memSession = rec; }
+  }
+
+  /* Use one session per 30-minute window of activity. A gap above 30 minutes
+     starts a new session id and the next segment number. */
+  function touchSession() {
+    try {
+      var now = Date.now();
+      var rec = readSession();
+      if (!rec) {
+        rec = { id: newSessionId(), segment: 1, last_activity: now };
+      } else if (now - rec.last_activity > SESSION_GAP_MS) {
+        rec = { id: newSessionId(), segment: rec.segment + 1, last_activity: now };
+      } else {
+        rec.last_activity = now;
+      }
+      writeSession(rec);
+      return rec;
+    } catch (e) {
+      memSession.last_activity = Date.now();
+      return memSession;
+    }
+  }
+
   var t0 = Date.now();
   var seq = 0;
   var oneShot = {};
@@ -110,9 +175,12 @@
 
   function emit(name, props) {
     seq += 1;
+    var session = touchSession();
     var properties = {
       is_internal: isInternal,
       load_id: loadId,
+      session_id: session.id,
+      session_segment: session.segment,
       event_id: loadId + ':' + name + ':' + seq
     };
     for (var key in props) {
@@ -153,7 +221,9 @@
         navigation: navigation || 'unknown',
         view_sequence: viewSeq
       });
-      if (i === t) {
+      /* deck_complete needs two entered slides, so a deep link straight to the
+         last slide is not a completed view. */
+      if (i === t && viewSeq >= 2) {
         emitOnce('deck_complete', {
           deck_id: CFG.deckId,
           slide_total: t,
