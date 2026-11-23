@@ -1,5 +1,5 @@
 // Resolves a Chrome/Chromium executable for the headless harness.
-// Order: $CHROME_PATH, $CHROME_BIN, Playwright's own cache, ~/.agent-browser/browsers, then common install paths.
+// Order: $CHROME_PATH, $CHROME_BIN, ~/.agent-browser/browsers, Playwright's own cache, then common install paths.
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -18,7 +18,7 @@ const COMMON_PATHS = [
 
 export const NO_BROWSER_MESSAGE = [
   '[harness] skipped: no Chrome/Chromium executable found.',
-  '[harness] set CHROME_PATH=/path/to/chrome, or install one of: google-chrome, chromium, chromium-browser.',
+  '[harness] set CHROME_PATH (or CHROME_BIN) to a Chrome/Chromium binary, or install one of: google-chrome, chromium, chromium-browser.',
 ].join('\n');
 
 function isExecutableFile(p) {
@@ -33,17 +33,16 @@ function isExecutableFile(p) {
 
 // Same layout the harness used before, but only when the directory exists.
 function agentBrowserCandidates() {
-  const dir = path.join(os.homedir(), '.agent-browser/browsers');
-  let entries;
   try {
-    entries = fs.readdirSync(dir);
+    const dir = path.join(os.homedir(), '.agent-browser/browsers');
+    return fs
+      .readdirSync(dir)
+      .filter((d) => d.startsWith('chrome'))
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+      .map((d) => path.join(dir, d, 'chrome'));
   } catch {
     return [];
   }
-  return entries
-    .filter((d) => d.startsWith('chrome'))
-    .sort()
-    .map((d) => path.join(dir, d, 'chrome'));
 }
 
 function playwrightCandidate() {
@@ -61,6 +60,6 @@ export function findChrome() {
     if (isExecutableFile(p)) return p;
     console.warn(`[harness] ignoring ${name}=${p}: not an executable file`);
   }
-  const candidates = [playwrightCandidate(), ...agentBrowserCandidates(), ...COMMON_PATHS];
+  const candidates = [...agentBrowserCandidates(), playwrightCandidate(), ...COMMON_PATHS];
   return candidates.find((p) => p && isExecutableFile(p));
 }

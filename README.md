@@ -36,8 +36,9 @@ npm run dev       # локальный сервер с пересборкой: h
 
 ```bash
 npm ci
+npm run build                      # харнесс открывает dist/index.html
 node tests/run.mjs tests/boot.mjs   # headless-прогон одного сценария
 ```
 
-Нужен Chrome или Chromium. Браузер ищется в `$CHROME_PATH`, кэше Playwright, `~/.agent-browser/browsers` и обычных путях установки.
+Нужен Chrome или Chromium для Linux или macOS. Браузер ищется в `$CHROME_PATH` / `$CHROME_BIN`, `~/.agent-browser/browsers`, кэше Playwright и обычных путях установки.
 Если браузера нет, харнесс печатает подсказку и выходит с кодом 0.

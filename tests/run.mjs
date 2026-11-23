@@ -15,7 +15,8 @@ fs.mkdirSync(outDir, { recursive: true });
 
 const executablePath = findChrome();
 if (!executablePath) {
-  console.log(NO_BROWSER_MESSAGE);
+  // Flush the hint before exiting, so a piped terminal still shows it.
+  await new Promise((resolve) => process.stdout.write(NO_BROWSER_MESSAGE + '\n', resolve));
   process.exit(0);
 }
 console.log('[harness] chrome:', executablePath);

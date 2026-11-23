@@ -10,9 +10,6 @@ jobs:
   checks:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      EXPECTED_SIZE: '1843616'
-      EXPECTED_SHA256: c6e41b3b9d2005a0d658f8decdfffcb3c628ab7a3e40bb6e332598225d6d815d
     steps:
       - uses: actions/checkout@v4
 
@@ -31,24 +28,26 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit -p .
 
-      - name: Rebuild release and compare size and SHA-256
+      # The committed artifact must equal a fresh build: same bytes, same hash.
+      # A content change that updates both files on purpose still passes.
+      - name: Rebuild release and compare with the committed artifact
         run: |
           npm run release
-          actual_size=$(stat -c %s TheLongRoad.html)
-          actual_sha=$(sha256sum TheLongRoad.html | cut -d' ' -f1)
-          echo "size=$actual_size sha256=$actual_sha"
-          if [ "$actual_size" != "$EXPECTED_SIZE" ]; then
-            echo "::error::TheLongRoad.html size $actual_size != $EXPECTED_SIZE"
-            exit 1
-          fi
-          if [ "$actual_sha" != "$EXPECTED_SHA256" ]; then
-            echo "::error::TheLongRoad.html SHA-256 $actual_sha != $EXPECTED_SHA256"
+          echo "size=$(stat -c %s TheLongRoad.html)"
+          echo "sha256=$(sha256sum TheLongRoad.html | cut -d' ' -f1)"
+          if ! git diff --exit-code -- TheLongRoad.html; then
+            echo "::error::TheLongRoad.html does not match a fresh npm run release"
             exit 1
           fi
 
       # Regression guard: the harness must not depend on ~/.agent-browser.
-      - name: Harness runs with an empty HOME
+      - name: Harness finds a browser with an empty HOME
         run: |
           empty_home="$RUNNER_TEMP/empty-home"
           mkdir -p "$empty_home"
-          HOME="$empty_home" node tests/run.mjs tests/harness.mjs --out "$RUNNER_TEMP/artifacts"
+          out=$(HOME="$empty_home" node tests/run.mjs tests/harness.mjs --out "$RUNNER_TEMP/artifacts")
+          echo "$out"
+          if ! printf '%s\n' "$out" | grep -q '^\[harness\] chrome: '; then
+            echo "::error::harness did not reach a browser with an empty HOME"
+            exit 1
+          fi
