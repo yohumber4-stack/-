@@ -1,0 +1,434 @@
+# Checks for the presentation on the default branch.
+#
+# The deck is plain HTML with inline CSS and one inline script, so this workflow
+# installs nothing: it uses the Node and Python that the runner image already
+# provides. A run takes a few seconds.
+#
+# These checks can fail for a real reason:
+#   - an inline <script> block no longer parses (node --check)
+#   - an HTML tag is left unclosed or closed without being opened (html.parser)
+#   - an http(s):// or // resource reference is added, which breaks presenting
+#     offline (attributes, <style> blocks, style="" attributes)
+#   - the deck holds other than EXPECTED_SLIDES slides, or a slide loses its
+#     heading or its .notes block (the deck script reads both and would throw)
+#
+# What this workflow deliberately does not do: install packages, run a browser,
+# call an external validator or compare text, because those either add a network
+# dependency or break on legitimate edits.
+name: Presentation checks
+
+on:
+  pull_request:
+  push:
+    # Default branch of this repository.
+    branches:
+      - hoplite/thourioi-293784a4
+
+permissions:
+  contents: read
+
+concurrency:
+  group: presentation-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DECK: vrednye-privychki.html
+  TEXT: tekst-vystupleniya.html
+  # Change this only when the deck really gains or loses a slide.
+  EXPECTED_SLIDES: '8'
+
+jobs:
+  checks:
+    # The check run on a pull request carries this name.
+    name: presentation checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Show tool versions
+        run: |
+          node --version
+          python3 --version
+
+      - name: Inline scripts parse
+        env:
+          CHECK_INLINE_SCRIPTS: |
+            import os
+            import subprocess
+            import sys
+            import tempfile
+
+            from html.parser import HTMLParser
+
+
+            class ScriptBlocks(HTMLParser):
+                """Collect the body of every inline <script> element."""
+
+                def __init__(self):
+                    super().__init__(convert_charrefs=False)
+                    self.blocks = []
+                    self.pending = None
+
+                def handle_starttag(self, tag, attrs):
+                    if tag == 'script':
+                        self.pending = {'line': self.getpos()[0], 'attrs': dict(attrs), 'parts': []}
+
+                def handle_data(self, data):
+                    if self.pending is not None:
+                        self.pending['parts'].append(data)
+
+                def handle_endtag(self, tag):
+                    if tag == 'script' and self.pending is not None:
+                        self.pending['code'] = ''.join(self.pending.pop('parts'))
+                        self.blocks.append(self.pending)
+                        self.pending = None
+
+
+            files = [os.environ['DECK'], os.environ['TEXT']]
+            workdir = tempfile.mkdtemp(prefix='inline-js-')
+            problems = []
+            checked = 0
+
+            for name in files:
+                with open(name, encoding='utf-8') as handle:
+                    source = handle.read()
+                parser = ScriptBlocks()
+                parser.feed(source)
+                parser.close()
+                print('%s: %d inline <script> block(s)' % (name, len(parser.blocks)))
+                if parser.pending is not None:
+                    problems.append((name, parser.pending['line'], '<script> block is never closed'))
+                for index, block in enumerate(parser.blocks, 1):
+                    line = block['line']
+                    code = block['code']
+                    if 'src' in block['attrs']:
+                        print('  block %d (line %d): uses src, inline body is empty' % (index, line))
+                    if not code.strip():
+                        print('  block %d (line %d): empty, nothing to parse' % (index, line))
+                        continue
+                    is_module = (block['attrs'].get('type') or '').strip().lower() == 'module'
+                    suffix = '.mjs' if is_module else '.js'
+                    path = os.path.join(workdir, '%s.%d%s' % (os.path.basename(name), index, suffix))
+                    with open(path, 'w', encoding='utf-8') as handle:
+                        handle.write(code)
+                    result = subprocess.run(['node', '--check', path], capture_output=True, text=True)
+                    checked += 1
+                    if result.returncode == 0:
+                        print('  block %d (line %d): parses (%d bytes, node --check %s)' % (index, line, len(code), suffix))
+                    else:
+                        problems.append((name, line, 'inline script block %d does not parse' % index))
+                        print(result.stderr.strip())
+
+            if checked == 0:
+                problems.append((files[0], 1, 'no inline <script> block found in %s or %s' % (files[0], files[1])))
+
+            print('parsed %d inline script block(s) from %d file(s)' % (checked, len(files)))
+            for name, line, message in problems:
+                print('::error file=%s,line=%d::%s' % (name, line, message))
+            sys.exit(1 if problems else 0)
+        run: |
+          set -euo pipefail
+          : "${CHECK_INLINE_SCRIPTS:?check program is empty}"
+          python3 -X utf8 -c "$CHECK_INLINE_SCRIPTS"
+
+      - name: HTML tags are balanced
+        env:
+          CHECK_TAGS: |
+            import os
+            import sys
+
+            from html.parser import HTMLParser
+
+            # Elements that never take an end tag.
+            VOID = {'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link',
+                    'meta', 'param', 'source', 'track', 'wbr'}
+
+            # Start tags that end an open <p> (HTML5 implied end tags).
+            P_CLOSERS = {'address', 'article', 'aside', 'blockquote', 'details', 'dialog',
+                         'div', 'dl', 'fieldset', 'figcaption', 'figure', 'footer', 'form',
+                         'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'header', 'hgroup', 'hr',
+                         'main', 'menu', 'nav', 'ol', 'p', 'pre', 'section', 'table', 'ul'}
+
+            IMPLIED = {
+                'li': {'li'},
+                'dt': {'dt', 'dd'},
+                'dd': {'dt', 'dd'},
+                'tr': {'tr', 'td', 'th'},
+                'td': {'td', 'th'},
+                'th': {'td', 'th'},
+                'option': {'option'},
+                'optgroup': {'option', 'optgroup'},
+                'thead': {'td', 'th', 'tr', 'tbody', 'tfoot'},
+                'tbody': {'td', 'th', 'tr', 'tbody', 'tfoot'},
+                'tfoot': {'td', 'th', 'tr', 'tbody', 'tfoot'},
+            }
+            for tag in P_CLOSERS:
+                IMPLIED.setdefault(tag, set()).add('p')
+
+
+            class Balance(HTMLParser):
+                """Track an open-element stack and report stray or never-closed tags."""
+
+                def __init__(self):
+                    super().__init__(convert_charrefs=True)
+                    self.stack = []
+                    self.problems = []
+                    self.starts = 0
+                    self.ends = 0
+
+                def handle_starttag(self, tag, attrs):
+                    self.starts += 1
+                    if tag in VOID:
+                        return
+                    while self.stack and self.stack[-1][0] in IMPLIED.get(tag, ()):
+                        self.stack.pop()
+                    self.stack.append((tag, self.getpos()[0]))
+
+                def handle_startendtag(self, tag, attrs):
+                    self.starts += 1
+
+                def handle_endtag(self, tag):
+                    self.ends += 1
+                    if tag in VOID:
+                        return
+                    line = self.getpos()[0]
+                    if not self.stack:
+                        self.problems.append((line, 'stray </%s>, no element is open' % tag))
+                        return
+                    if self.stack[-1][0] == tag:
+                        self.stack.pop()
+                        return
+                    matching = None
+                    for index in range(len(self.stack) - 1, -1, -1):
+                        if self.stack[index][0] == tag:
+                            matching = index
+                            break
+                    if matching is None:
+                        self.problems.append((line, 'stray </%s>, no <%s> is open' % (tag, tag)))
+                        return
+                    open_tags = self.stack[matching + 1:]
+                    self.problems.append((line, '</%s> closes while %s is still open (opened at line %d)' % (
+                        tag, ', '.join('<%s>' % item[0] for item in open_tags), open_tags[0][1])))
+                    del self.stack[matching:]
+
+
+            files = [os.environ['DECK'], os.environ['TEXT']]
+            failed = False
+            for name in files:
+                with open(name, encoding='utf-8') as handle:
+                    source = handle.read()
+                parser = Balance()
+                parser.feed(source)
+                parser.close()
+                unclosed = [(line, tag) for tag, line in parser.stack]
+                print('%s: %d start tags, %d end tags, %d unclosed element(s)' % (
+                    name, parser.starts, parser.ends, len(unclosed)))
+                for line, message in parser.problems:
+                    print('::error file=%s,line=%d::%s' % (name, line, message))
+                    failed = True
+                for line, tag in unclosed:
+                    print('::error file=%s,line=%d::<%s> is never closed' % (name, line, tag))
+                    failed = True
+
+            print('tag balance: %s' % ('FAILED' if failed else 'OK'))
+            sys.exit(1 if failed else 0)
+        run: |
+          set -euo pipefail
+          : "${CHECK_TAGS:?check program is empty}"
+          python3 -X utf8 -c "$CHECK_TAGS"
+
+      - name: No external resource references
+        env:
+          CHECK_OFFLINE: |
+            import os
+            import re
+            import sys
+
+            from html.parser import HTMLParser
+
+            # Attribute values that make the browser load something.
+            RESOURCE_ATTRS = ('src', 'srcset', 'poster', 'data', 'background', 'action',
+                              'formaction', 'xlink:href', 'href')
+            # <a href> and <area href> only navigate, they load nothing while presenting.
+            NAVIGATION_ONLY = {('a', 'href'), ('area', 'href')}
+
+            CSS_URL = re.compile(r'''url\(\s*['"]?\s*((?:https?:)?//[^)'"\s]+)''', re.IGNORECASE)
+            CSS_IMPORT = re.compile(r'''@import\s+(?:url\(\s*)?['"]?\s*((?:https?:)?//[^)'"\s;]+)''', re.IGNORECASE)
+
+
+            def is_external(value):
+                lowered = value.strip().lower()
+                return (lowered.startswith('http://') or lowered.startswith('https://')
+                        or lowered.startswith('//'))
+
+
+            class Refs(HTMLParser):
+                """Collect externally loaded URLs from attributes, <style> and style=""."""
+
+                def __init__(self):
+                    super().__init__(convert_charrefs=True)
+                    self.hits = []
+                    self.css = []
+                    self.values = 0
+                    self.in_style = None
+
+                def handle_starttag(self, tag, attrs):
+                    attributes = dict(attrs)
+                    line = self.getpos()[0]
+                    for name in RESOURCE_ATTRS:
+                        if name not in attributes:
+                            continue
+                        if (tag, name) in NAVIGATION_ONLY:
+                            continue
+                        value = attributes[name] or ''
+                        self.values += 1
+                        if name == 'srcset':
+                            candidates = [item.strip().split(' ')[0] for item in value.split(',') if item.strip()]
+                        else:
+                            candidates = [value]
+                        for candidate in candidates:
+                            if is_external(candidate):
+                                self.hits.append((line, '<%s %s="%s">' % (tag, name, candidate)))
+                    if attributes.get('style'):
+                        self.css.append((line, attributes['style']))
+                    if tag == 'style':
+                        self.in_style = [line, []]
+
+                def handle_data(self, data):
+                    if self.in_style is not None:
+                        self.in_style[1].append(data)
+
+                def handle_endtag(self, tag):
+                    if tag == 'style' and self.in_style is not None:
+                        self.css.append((self.in_style[0], ''.join(self.in_style[1])))
+                        self.in_style = None
+
+
+            files = [os.environ['DECK'], os.environ['TEXT']]
+            failed = False
+            total_values = 0
+            total_css = 0
+            for name in files:
+                with open(name, encoding='utf-8') as handle:
+                    source = handle.read()
+                parser = Refs()
+                parser.feed(source)
+                parser.close()
+                hits = list(parser.hits)
+                for line, css in parser.css:
+                    for match in CSS_URL.findall(css):
+                        hits.append((line, 'css url(%s)' % match))
+                    for match in CSS_IMPORT.findall(css):
+                        hits.append((line, 'css @import %s' % match))
+                hits.sort()
+                total_values += parser.values
+                total_css += len(parser.css)
+                print('%s: %d resource attribute value(s), %d css block(s), %d external reference(s)' % (
+                    name, parser.values, len(parser.css), len(hits)))
+                for line, message in hits:
+                    print('::error file=%s,line=%d::external resource reference: %s' % (name, line, message))
+                    failed = True
+
+            print('scanned %d resource attribute value(s) and %d css block(s)' % (total_values, total_css))
+            print('offline safety: %s' % ('FAILED' if failed else 'OK'))
+            sys.exit(1 if failed else 0)
+        run: |
+          set -euo pipefail
+          : "${CHECK_OFFLINE:?check program is empty}"
+          python3 -X utf8 -c "$CHECK_OFFLINE"
+
+      - name: Slide count and slide structure
+        env:
+          CHECK_SLIDES: |
+            import os
+            import sys
+
+            from html.parser import HTMLParser
+
+            VOID = {'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link',
+                    'meta', 'param', 'source', 'track', 'wbr'}
+
+
+            class Deck(HTMLParser):
+                """Count .slide elements and record the heading and notes of each one."""
+
+                def __init__(self):
+                    super().__init__(convert_charrefs=True)
+                    self.slides = []
+                    self.current = None
+                    self.depth = 0
+                    self.heading = None
+                    self.heading_tag = None
+                    self.heading_parts = []
+                    self.notes = False
+
+                def handle_starttag(self, tag, attrs):
+                    classes = (dict(attrs).get('class') or '').split()
+                    if self.current is None:
+                        if 'slide' in classes:
+                            self.current = {'line': self.getpos()[0], 'classes': classes}
+                            self.depth = 1
+                            self.heading = ''
+                            self.notes = False
+                        return
+                    if tag not in VOID:
+                        self.depth += 1
+                    if tag in ('h1', 'h2') and self.heading_tag is None:
+                        self.heading_tag = tag
+                        self.heading_parts = []
+                    if 'notes' in classes:
+                        self.notes = True
+
+                def handle_data(self, data):
+                    if self.heading_tag is not None:
+                        self.heading_parts.append(data)
+
+                def handle_endtag(self, tag):
+                    if self.current is None:
+                        return
+                    if tag == self.heading_tag:
+                        if not self.heading:
+                            self.heading = ' '.join(''.join(self.heading_parts).split())
+                        self.heading_tag = None
+                    if tag in VOID:
+                        return
+                    self.depth -= 1
+                    if self.depth == 0:
+                        self.current['heading'] = self.heading
+                        self.current['notes'] = self.notes
+                        self.slides.append(self.current)
+                        self.current = None
+
+
+            deck = os.environ['DECK']
+            expected = int(os.environ['EXPECTED_SLIDES'])
+            with open(deck, encoding='utf-8') as handle:
+                source = handle.read()
+            parser = Deck()
+            parser.feed(source)
+            parser.close()
+
+            problems = []
+            print('%s: %d slide(s), expected %d' % (deck, len(parser.slides), expected))
+            for number, slide in enumerate(parser.slides, 1):
+                extra = [name for name in slide['classes'] if name != 'slide']
+                print('  slide %d: line %d, class="%s", heading="%s", notes=%s' % (
+                    number, slide['line'], ' '.join(slide['classes']), slide['heading'],
+                    'yes' if slide['notes'] else 'NO'))
+                if not slide['heading']:
+                    problems.append((slide['line'], 'slide %d has no <h1>/<h2> heading' % number))
+                if not slide['notes']:
+                    problems.append((slide['line'], 'slide %d has no .notes element, the notes panel would fail' % number))
+
+            if len(parser.slides) != expected:
+                problems.append((1, 'deck has %d slides, expected %d' % (len(parser.slides), expected)))
+
+            for line, message in problems:
+                print('::error file=%s,line=%d::%s' % (deck, line, message))
+            sys.exit(1 if problems else 0)
+        run: |
+          set -euo pipefail
+          : "${CHECK_SLIDES:?check program is empty}"
+          python3 -X utf8 -c "$CHECK_SLIDES"
