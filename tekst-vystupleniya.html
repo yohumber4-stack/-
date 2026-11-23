@@ -1,9 +1,228 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-surface="text" data-print-scope="text_page">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Текст выступления — Вредные привычки</title>
+<script>
+/* VPAnalytics v1 — page-load-scoped, deny-by-default consent, no personal data.
+   Insert as one inline <script> block immediately after </title> on each page.
+   Page config comes from attributes on <html>:
+     data-surface="deck|text|index"
+     data-deck-id="vrednye-privychki" data-deck-total="8"  (deck only)
+     data-print-scope="deck_all_slides|text_page"
+   Test-only overrides may be set in window.VPAnalyticsConfig before this block.
+   Never put an endpoint or host allowlist in a production page until the owner
+   confirms the legal basis and the consent control exists. */
+(function () {
+  'use strict';
+
+  var CFG = {
+    surface: 'unknown',
+    deckId: '',
+    deckTotal: 0,
+    printScope: '',
+    endpoint: '',
+    hosts: [],
+    consentKey: 'analytics_consent',
+    internalParams: ['internal', 'test'],
+    debugParam: 'debug_track',
+    environment: ''
+  };
+  var U = window.VPAnalyticsConfig || {};
+  for (var k in CFG) {
+    if (Object.prototype.hasOwnProperty.call(CFG, k) && Object.prototype.hasOwnProperty.call(U, k)) CFG[k] = U[k];
+  }
+
+  var root = document.documentElement;
+  if (root.getAttribute('data-surface')) CFG.surface = root.getAttribute('data-surface');
+  if (root.getAttribute('data-deck-id')) CFG.deckId = root.getAttribute('data-deck-id');
+  if (root.getAttribute('data-deck-total')) CFG.deckTotal = parseInt(root.getAttribute('data-deck-total'), 10) || 0;
+  if (root.getAttribute('data-print-scope')) CFG.printScope = root.getAttribute('data-print-scope');
+
+  var params;
+  try { params = new URLSearchParams(location.search); }
+  catch (e) { params = { get: function () { return null; } }; }
+
+  var env = CFG.environment;
+  if (!env) {
+    if (CFG.hosts.indexOf(location.hostname) !== -1) env = 'production';
+    else if (location.protocol === 'file:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1') env = 'local';
+    else env = 'staging';
+  }
+
+  var isInternal = CFG.internalParams.some(function (p) { return params.get(p) === '1'; });
+  var isDebug = params.get(CFG.debugParam) === '1';
+  var isBot = navigator.webdriver === true ||
+    /bot|crawler|spider|headless|preview|prerender/i.test(navigator.userAgent || '');
+  var privacyRefusal = navigator.doNotTrack === '1' || navigator.globalPrivacyControl === true;
+
+  var consentGranted = false;
+  try { consentGranted = localStorage.getItem(CFG.consentKey) === 'granted'; } catch (e) {}
+
+  var loadId;
+  try {
+    loadId = (self.crypto && typeof self.crypto.randomUUID === 'function')
+      ? self.crypto.randomUUID()
+      : 'load-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+  } catch (e) {
+    loadId = 'load-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+  }
+
+  var t0 = Date.now();
+  var seq = 0;
+  var oneShot = {};
+  var sink = [];
+  var lastSlide = null;
+  var viewSeq = 0;
+  var lastCta = {};
+
+  window.__trackedEvents = sink;
+
+  function cleanText(value, max) {
+    return String(value == null ? '' : value).replace(/\s+/g, ' ').trim().slice(0, max || 120);
+  }
+
+  function canSend() {
+    return !!CFG.endpoint && consentGranted && !isInternal && !isDebug &&
+      env === 'production' && !isBot && !privacyRefusal;
+  }
+
+  function transmit(payload) {
+    if (!canSend()) return;
+    var body = JSON.stringify(payload);
+    /* A string body is sent as text/plain, which is CORS-safelisted, so a
+       cross-origin collector receives it without a preflight. A JSON Blob
+       (application/json) triggers a preflight that sendBeacon cannot answer,
+       and the beacon is silently dropped. The collector parses the JSON. */
+    try {
+      if (navigator.sendBeacon && navigator.sendBeacon(CFG.endpoint, body)) return;
+    } catch (e) {}
+    try {
+      fetch(CFG.endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+        body: body,
+        keepalive: true
+      });
+    } catch (e) {}
+  }
+
+  function emit(name, props) {
+    seq += 1;
+    var properties = {
+      is_internal: isInternal,
+      load_id: loadId,
+      event_id: loadId + ':' + name + ':' + seq
+    };
+    for (var key in props) {
+      if (Object.prototype.hasOwnProperty.call(props, key)) properties[key] = props[key];
+    }
+    var record = { event: name, properties: properties };
+    sink.push(record);
+    transmit(record);
+    return record;
+  }
+
+  function emitOnce(name, props) {
+    if (oneShot[name]) return null;
+    oneShot[name] = true;
+    return emit(name, props);
+  }
+
+  var api = {
+    loadId: loadId,
+    environment: env,
+    isInternal: isInternal,
+    track: emit,
+    slide: function (index, total, title, navigation) {
+      var i = parseInt(index, 10);
+      var t = parseInt(total, 10) || CFG.deckTotal;
+      if (!(i >= 1)) return null;
+      /* Dedupe: one event per entered index. A call that keeps the same index
+         fires nothing; a revisit after leaving fires with a higher view_sequence. */
+      if (lastSlide === i) return null;
+      lastSlide = i;
+      viewSeq += 1;
+      var record = emit('slide_view', {
+        surface: 'deck',
+        deck_id: CFG.deckId,
+        slide_index: i,
+        slide_total: t,
+        slide_title: cleanText(title, 120),
+        navigation: navigation || 'unknown',
+        view_sequence: viewSeq
+      });
+      if (i === t) {
+        emitOnce('deck_complete', {
+          deck_id: CFG.deckId,
+          slide_total: t,
+          slide_last_index: i,
+          seconds_since_deck_open: Math.min(7200, Math.round((Date.now() - t0) / 1000))
+        });
+      }
+      return record;
+    },
+    print: function (scope) {
+      return emitOnce('print_intent', {
+        surface: CFG.surface,
+        print_scope: scope || CFG.printScope || 'unknown'
+      });
+    }
+  };
+  window.__analytics = api;
+
+  /* page_view: exactly one per document */
+  emitOnce('page_view', {
+    surface: CFG.surface,
+    page_path: location.pathname.slice(0, 120),
+    page_title: cleanText(document.title, 120),
+    language: (root.getAttribute('lang') || 'ru').slice(0, 8),
+    environment: env
+  });
+
+  /* print_intent: beforeprint, once per load */
+  window.addEventListener('beforeprint', function () { api.print(); });
+
+  /* CTA and download: one delegated listener, so dedupe lives in one place.
+     The download link fires file_download only, never cta_click. */
+  document.addEventListener('click', function (e) {
+    var a = e.target && e.target.closest ? e.target.closest('a') : null;
+    if (!a) return;
+    var href = a.getAttribute('href') || '';
+
+    if (a.hasAttribute('download')) {
+      var fileName = cleanText((href.split('/').pop() || '').split('?')[0], 120);
+      var size = parseInt(a.getAttribute('data-file-size') || '', 10);
+      var dl = {
+        file_name: fileName,
+        file_type: (fileName.split('.').pop() || '').toLowerCase(),
+        source_surface: CFG.surface
+      };
+      if (size > 0) dl.file_size_bytes = size;
+      emit('file_download', dl);
+      return;
+    }
+
+    var target = a.getAttribute('data-cta');
+    if (!target) return;
+    var now = Date.now();
+    if (lastCta[target] && now - lastCta[target] < 500) return;
+    lastCta[target] = now;
+    var label = a.firstChild && a.firstChild.nodeType === 3 ? a.firstChild.textContent : a.textContent;
+    var targetPath;
+    try { targetPath = new URL(href, location.href).pathname.slice(0, 120); }
+    catch (e) { targetPath = href.split('#')[0].split('?')[0].slice(0, 120); }
+    emit('cta_click', {
+      cta_target: cleanText(target, 40),
+      cta_label: cleanText(label, 60),
+      source_surface: CFG.surface,
+      target_path: targetPath
+    });
+  }, true);
+
+}());
+</script>
 <style>
   body {
     margin: 0; background: #fbfaf7; color: #1d2528;
