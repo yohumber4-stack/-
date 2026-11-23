@@ -193,6 +193,48 @@
   #doc h2 { font-size: 21px; color: var(--accent); margin: 26px 0 10px; }
   #doc p { font-size: 18px; line-height: 1.6; margin-bottom: 10px; }
 
+  /* Телефон: слайды перестраиваются в вертикальную колонку */
+  @media screen and (max-width: 760px) {
+    html, body { height: auto; min-height: 100%; }
+    body { overflow-x: hidden; overflow-y: auto; background: var(--bg); }
+    #deck { position: static; width: auto; height: auto; transform: none; }
+    .slide {
+      position: relative; inset: auto; width: 100%; height: auto; min-height: 100vh;
+      padding: 24px 18px 72px; overflow: visible;
+    }
+    .slide.split { padding-right: 18px; }
+    .slide .num { left: 18px; bottom: 16px; }
+    .slide h2 { font-size: 26px; margin: 6px 0 16px; }
+    .title-slide { justify-content: flex-start; padding-top: 44px; }
+    .title-slide h1 { font-size: 30px; margin: 10px 0 12px; }
+    .title-slide .sub { font-size: 17px; }
+    .title-slide .who { margin-top: 22px; font-size: 15px; }
+    p, li { font-size: 17px; }
+    .slide ul li { margin-bottom: 10px; }
+    .art { position: static; width: 100%; height: auto; margin-top: 20px; padding: 18px; }
+    .art.photo { height: 190px; padding: 0; }
+    .art.photo img { height: 190px; }
+    .art .pic { height: 190px; margin-bottom: 14px; }
+    .slide svg[width] { display: block; max-width: 100%; height: auto; }
+    .grid2 { grid-template-columns: 1fr; gap: 14px; }
+    .chem { grid-template-columns: repeat(2, 1fr); }
+    .myth { flex-direction: column; gap: 4px; }
+    .myth .m { flex: none; }
+    .steps { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+    .steps::before { display: none; }
+    .timeline { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 14px; margin: 12px 0 22px; }
+    .timeline::before { display: none; }
+    .final { flex-direction: column; gap: 16px; align-items: stretch; }
+    .final img { width: 100% !important; height: auto !important; max-height: 240px; }
+    .conclusion { padding: 16px 18px; }
+    .thanks { font-size: 24px; }
+    .slide [style*="display:flex"], .slide [style*="display: flex"] { flex-direction: column; }
+    .slide [style*="flex"] { flex: 0 0 auto !important; }
+    .src { font-size: 13px; }
+    #nav { opacity: 1; }
+    #nav button { min-width: 40px; min-height: 44px; padding: 8px 10px; }
+  }
+
   @media print {
     body { background: #fff; overflow: visible; }
     #nav, #notes-panel { display: none !important; }
@@ -629,9 +671,15 @@
     document.getElementById('notes-num').textContent = cur + 1;
     notesBody.innerHTML = slides[cur].querySelector('.notes').innerHTML;
     notesPanel.scrollTop = 0;
+    if (matchMedia('screen and (max-width: 760px)').matches) scrollTo(0, 0);
     history.replaceState(null, '', '#' + (cur + 1));
   }
   function fit() {
+    if (matchMedia('screen and (max-width: 760px)').matches) {
+      deck.style.top = '';
+      deck.style.transform = '';
+      return;
+    }
     const h = document.body.classList.contains('notes-on') ? innerHeight - notesPanel.offsetHeight : innerHeight;
     const k = Math.min(innerWidth / 1280, h / 720);
     deck.style.top = (h / 2) + 'px';
