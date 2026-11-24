@@ -392,8 +392,10 @@
         print_scope: scope || CFG.printScope || 'unknown'
       });
     },
-    /* Consent control for the banner. A grant starts the session and its
-       page_view; a refusal removes any session stored for this tab. */
+    /* Consent hook for the banner. Stores only 'granted' or 'denied' under
+       CFG.consentKey, then starts or stops sending without a reload. A grant
+       starts the session and its page_view; a refusal removes any session
+       stored for this tab. */
     consent: function (state) {
       var granted = state === 'granted';
       try { localStorage.setItem(CFG.consentKey, granted ? 'granted' : 'denied'); } catch (e) {}
@@ -424,11 +426,43 @@
   };
   window.__analytics = api;
 
-  /* page_view: one per document, and one when a new segment opens */
+  /* Another tab changed the stored choice: apply it here at once, so a grant
+     starts sending and a withdrawal stops it without a reload. A withdrawal
+     removes the key, so its event arrives with newValue null; the stored value
+     decides, not the event. Nothing is written here, so two tabs cannot echo
+     events to each other. */
+  window.addEventListener('storage', function (e) {
+    if (e && e.key !== null && e.key !== CFG.consentKey) return;
+    var stored = null;
+    try { stored = localStorage.getItem(CFG.consentKey); } catch (err) { return; }
+    var granted = stored === 'granted';
+    consentGranted = granted;
+    if (granted) {
+      /* Sending resumes with the next event. This load sent no page_view before
+         the grant, and it does not send one after the fact. */
+      if (!readStored()) {
+        session.id = newSessionId();
+        session.segment = 1;
+        session.lastWall = Date.now();
+        session.lastMono = monoNow();
+        session.hasRecord = false;
+      }
+      session.rotationDue = false;
+    } else {
+      /* Withdrawal: stop sending, remove the session stored for this tab, and
+         let the banner show its unset or declined state again. */
+      dropStoredSession();
+    }
+  });
+
+  /* page_view: one per document and one when a new segment opens, and only
+     after consent. The consent control calls api.consent('granted') on the
+     same load, so the first page_view of that load can still be sent.
+     emitOnce keeps the load-time event single. */
   function emitPageView() {
     return emitOnce('page_view', pageViewProperties());
   }
-  emitPageView();
+  if (consentGranted) emitPageView();
 
   /* print_intent: beforeprint, once per load */
   window.addEventListener('beforeprint', function () { api.print(); });
@@ -674,9 +708,54 @@
   #doc h2 { font-size: 21px; color: var(--accent); margin: 26px 0 10px; }
   #doc p { font-size: 18px; line-height: 1.6; margin-bottom: 10px; }
 
+  /* Согласие на обезличенную статистику.
+     Полоса фиксирована сверху и лежит в поле слайда (42px) или в letterbox,
+     поэтому сцену не двигает и текст слайда не перекрывает. */
+  #consent {
+    position: fixed; left: 0; right: 0; top: 0; z-index: 6;
+    display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center;
+    padding: 4px 16px 4px 13px; background: rgba(32,34,36,.97); color: #f0f0ee;
+    border-left: 3px solid var(--accent); box-shadow: 0 2px 10px rgba(0,0,0,.28);
+  }
+  #consent[hidden] { display: none; }
+  #consent .consent-text { flex: 1 1 auto; margin: 0; font-size: 13.5px; line-height: 1.3; }
+  #consent .consent-actions { display: flex; gap: 8px; flex: 0 0 auto; }
+  #consent button {
+    font: inherit; font-size: 13.5px; min-height: 28px; padding: 0 12px;
+    border: 1px solid var(--accent); cursor: pointer;
+  }
+  #consent .accept { background: var(--accent); color: #fff; }
+  #consent .accept:hover { background: #275a56; border-color: #275a56; }
+  #consent .decline { background: transparent; color: #f0f0ee; border-color: #6b7478; }
+  #consent .decline:hover { background: #2b2f31; }
+  #consent button:focus-visible { outline: 3px solid #8fd0c8; outline-offset: 2px; }
+  #consent-withdraw { position: fixed; left: 16px; top: 8px; z-index: 6; margin: 0; }
+  #consent-withdraw[hidden] { display: none; }
+  #consent-withdraw button {
+    font: inherit; font-size: 12.5px; line-height: 1.2; min-height: 28px; padding: 4px 10px;
+    color: #ccc; background: rgba(32,34,36,.9); border: 0; cursor: pointer; text-decoration: underline;
+  }
+  #consent-withdraw button:focus-visible { outline: 3px solid #8fd0c8; outline-offset: 2px; }
+
+  /* Телефон: баннер согласия встаёт в поток над первым слайдом.
+     Он ничего не перекрывает, страница прокручивается как обычно. */
+  @media screen and (max-width: 760px) {
+    #consent {
+      position: static; z-index: auto; box-shadow: none;
+      margin: 14px 14px 0; padding: 12px 14px; gap: 10px 16px;
+    }
+    #consent .consent-text { flex: 1 1 100%; font-size: 15px; line-height: 1.45; }
+    #consent button { font-size: 15px; min-height: 44px; padding: 0 16px; }
+    #consent-withdraw { position: static; margin: 12px 14px 0; }
+    #consent-withdraw button {
+      font-size: 14px; min-height: 44px; padding: 8px 0; background: none;
+      color: #8fd0c8; text-decoration: underline;
+    }
+  }
+
   @media print {
     body { background: #fff; overflow: visible; }
-    #nav, #notes-panel { display: none !important; }
+    #nav, #notes-panel, #consent, #consent-withdraw { display: none !important; }
     body:not(.doc-on) #doc { display: none; }
     body.doc-on #deck { display: none; }
     body.doc-on #doc { position: static; padding: 0; overflow: visible; }
@@ -715,6 +794,16 @@
   <symbol id="i-smile" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 14.5a4.5 4.5 0 0 0 8 0M9 9.5v.1M15 9.5v.1"/></symbol>
   <symbol id="i-hand" viewBox="0 0 24 24"><path d="M7 11V6.5a1.5 1.5 0 0 1 3 0V11"/><path d="M10 10V4.5a1.5 1.5 0 0 1 3 0V10"/><path d="M13 10V5.5a1.5 1.5 0 0 1 3 0V11"/><path d="M16 11V8.5a1.5 1.5 0 0 1 3 0V14a7 7 0 0 1-7 7c-3 0-4.5-1.5-6.5-4L3.7 14a1.5 1.5 0 0 1 2.3-2l1 1"/></symbol>
 </svg>
+
+<!-- Согласие: в потоке до сцены, поэтому на телефоне баннер не перекрывает слайды -->
+<div id="consent" class="consent" role="region" aria-labelledby="consent-text" hidden>
+  <p class="consent-text" id="consent-text"></p>
+  <div class="consent-actions">
+    <button type="button" class="accept" id="consent-accept">Принять</button>
+    <button type="button" class="decline" id="consent-decline">Отказаться</button>
+  </div>
+</div>
+<p id="consent-withdraw" hidden><button type="button" id="consent-withdraw-btn">Отозвать согласие</button></p>
 
 <div id="deck">
 
@@ -1142,6 +1231,8 @@
   })();
 
   document.addEventListener('keydown', e => {
+    // Кнопки согласия не должны переключать слайды с клавиатуры
+    if (e.target && e.target.closest && e.target.closest('#consent, #consent-withdraw')) return;
     const k = e.key.toLowerCase();
     if (k === 'escape' && document.body.classList.contains('doc-on')) { toggleDoc(); return; }
     // «в», «а», «т» — те же клавиши в русской раскладке
@@ -1174,6 +1265,63 @@
 
   fit();
   show((parseInt(location.hash.slice(1), 10) || 1) - 1, location.hash ? 'initial_hash' : 'initial');
+</script>
+
+<script>
+/* Согласие на обезличенную статистику просмотров.
+   В localStorage хранится только ключ analytics_consent со значением
+   'granted' или 'denied'. Персональных данных нет. */
+(function () {
+  'use strict';
+  /* ЗАГЛУШКА: черновая формулировка. Владелец страницы её не утверждал.
+     Замените эту строку — остальной код менять не нужно. */
+  var CONSENT_TEXT = 'Собираем обезличенную статистику просмотров. Формулировка черновая, ждёт утверждения владельца.';
+  var KEY = 'analytics_consent';
+
+  var banner = document.getElementById('consent');
+  var text = document.getElementById('consent-text');
+  var accept = document.getElementById('consent-accept');
+  var decline = document.getElementById('consent-decline');
+  var reset = document.getElementById('consent-withdraw');
+  var resetBtn = document.getElementById('consent-withdraw-btn');
+  if (!banner || !text || !accept || !decline) return;
+
+  text.textContent = CONSENT_TEXT;
+
+  function stored() {
+    try { return localStorage.getItem(KEY); } catch (e) { return null; }
+  }
+  function save(state) {
+    if (window.__analytics && typeof window.__analytics.consent === 'function') {
+      window.__analytics.consent(state);
+      return;
+    }
+    try { localStorage.setItem(KEY, state); } catch (e) {}
+  }
+  function clear() {
+    if (window.__analytics && typeof window.__analytics.clearConsent === 'function') {
+      window.__analytics.clearConsent();
+      return;
+    }
+    try { localStorage.removeItem(KEY); } catch (e) {}
+  }
+  function render() {
+    var choice = stored();
+    var decided = choice === 'granted' || choice === 'denied';
+    banner.hidden = decided;
+    if (reset) reset.hidden = !decided;
+  }
+
+  /* Another tab granted or withdrew: redraw the banner here too, no reload. */
+  window.addEventListener('storage', function (e) {
+    if (e && e.key !== null && e.key !== KEY) return;
+    render();
+  });
+  accept.addEventListener('click', function () { save('granted'); render(); });
+  decline.addEventListener('click', function () { save('denied'); render(); });
+  if (resetBtn) resetBtn.addEventListener('click', function () { clear(); render(); });
+  render();
+}());
 </script>
 </body>
 </html>

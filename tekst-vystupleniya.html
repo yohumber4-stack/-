@@ -392,8 +392,10 @@
         print_scope: scope || CFG.printScope || 'unknown'
       });
     },
-    /* Consent control for the banner. A grant starts the session and its
-       page_view; a refusal removes any session stored for this tab. */
+    /* Consent hook for the banner. Stores only 'granted' or 'denied' under
+       CFG.consentKey, then starts or stops sending without a reload. A grant
+       starts the session and its page_view; a refusal removes any session
+       stored for this tab. */
     consent: function (state) {
       var granted = state === 'granted';
       try { localStorage.setItem(CFG.consentKey, granted ? 'granted' : 'denied'); } catch (e) {}
@@ -424,11 +426,43 @@
   };
   window.__analytics = api;
 
-  /* page_view: one per document, and one when a new segment opens */
+  /* Another tab changed the stored choice: apply it here at once, so a grant
+     starts sending and a withdrawal stops it without a reload. A withdrawal
+     removes the key, so its event arrives with newValue null; the stored value
+     decides, not the event. Nothing is written here, so two tabs cannot echo
+     events to each other. */
+  window.addEventListener('storage', function (e) {
+    if (e && e.key !== null && e.key !== CFG.consentKey) return;
+    var stored = null;
+    try { stored = localStorage.getItem(CFG.consentKey); } catch (err) { return; }
+    var granted = stored === 'granted';
+    consentGranted = granted;
+    if (granted) {
+      /* Sending resumes with the next event. This load sent no page_view before
+         the grant, and it does not send one after the fact. */
+      if (!readStored()) {
+        session.id = newSessionId();
+        session.segment = 1;
+        session.lastWall = Date.now();
+        session.lastMono = monoNow();
+        session.hasRecord = false;
+      }
+      session.rotationDue = false;
+    } else {
+      /* Withdrawal: stop sending, remove the session stored for this tab, and
+         let the banner show its unset or declined state again. */
+      dropStoredSession();
+    }
+  });
+
+  /* page_view: one per document and one when a new segment opens, and only
+     after consent. The consent control calls api.consent('granted') on the
+     same load, so the first page_view of that load can still be sent.
+     emitOnce keeps the load-time event single. */
   function emitPageView() {
     return emitOnce('page_view', pageViewProperties());
   }
-  emitPageView();
+  if (consentGranted) emitPageView();
 
   /* print_intent: beforeprint, once per load */
   window.addEventListener('beforeprint', function () { api.print(); });
@@ -498,9 +532,34 @@
   h2 span { color: #5e676b; font-weight: normal; text-transform: none; letter-spacing: 0; }
   p { font-size: 20px; line-height: 1.6; margin: 0 0 12px; }
   b { color: #b4553d; }
+  /* Согласие на обезличенную статистику */
+  .consent {
+    display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center;
+    margin: 0 0 28px; padding: 14px 16px; background: #fff;
+    border: 1px solid #dcdad3; border-left: 3px solid #2f6b66;
+  }
+  .consent[hidden], .consent-reset[hidden] { display: none; }
+  .consent .consent-text { flex: 1 1 260px; margin: 0; font-size: 15px; line-height: 1.45; color: #1d2528; }
+  .consent .consent-actions { display: flex; gap: 8px; flex: 0 0 auto; }
+  .consent button {
+    font: inherit; font-size: 15px; min-height: 44px; padding: 0 16px;
+    cursor: pointer; border: 1px solid #2f6b66; background: #fff; color: #2f6b66;
+  }
+  .consent .accept { background: #2f6b66; color: #fff; }
+  .consent .accept:hover { background: #275a56; border-color: #275a56; }
+  .consent .decline:hover { background: #e4eeeb; }
+  .consent button:focus-visible { outline: 3px solid #2f6b66; outline-offset: 2px; }
+  .consent-reset { margin: 0 0 26px; font-size: 14px; color: #5e676b; }
+  .consent-reset button {
+    font: inherit; font-size: 14px; min-height: 32px; padding: 6px 0;
+    color: #2f6b66; background: none; border: 0; cursor: pointer; text-decoration: underline;
+  }
+  .consent-reset button:focus-visible { outline: 3px solid #2f6b66; outline-offset: 2px; }
+
   @media print {
     body { background: #fff; }
     main { padding: 0; }
+    .consent, .consent-reset { display: none !important; }
     p { font-size: 15pt; }
     section { break-inside: avoid; }
   }
@@ -508,8 +567,17 @@
 </head>
 <body>
 <main>
+  <div id="consent" class="consent" role="region" aria-labelledby="consent-text" hidden>
+    <p class="consent-text" id="consent-text"></p>
+    <div class="consent-actions">
+      <button type="button" class="accept" id="consent-accept">Принять</button>
+      <button type="button" class="decline" id="consent-decline">Отказаться</button>
+    </div>
+  </div>
+
   <h1>Текст выступления: вредные привычки</h1>
   <div class="meta">Примерно 5 минут. Цифры выделены, чтобы быстро найти их глазами.</div>
+  <p class="consent-reset" id="consent-withdraw" hidden><button type="button" id="consent-withdraw-btn">Отозвать согласие</button></p>
 
   <section>
     <h2>Слайд 1 · Титульный <span>· 15 сек</span></h2>
@@ -566,5 +634,62 @@
     <p>Вывод простой: вредную привычку легче не начинать, чем потом от неё избавляться. Но бросить можно в любом возрасте, и помощь можно получить бесплатно. Спасибо за внимание!</p>
   </section>
 </main>
+
+<script>
+/* Согласие на обезличенную статистику просмотров.
+   В localStorage хранится только ключ analytics_consent со значением
+   'granted' или 'denied'. Персональных данных нет. */
+(function () {
+  'use strict';
+  /* ЗАГЛУШКА: черновая формулировка. Владелец страницы её не утверждал.
+     Замените эту строку — остальной код менять не нужно. */
+  var CONSENT_TEXT = 'Собираем обезличенную статистику просмотров. Формулировка черновая, ждёт утверждения владельца.';
+  var KEY = 'analytics_consent';
+
+  var banner = document.getElementById('consent');
+  var text = document.getElementById('consent-text');
+  var accept = document.getElementById('consent-accept');
+  var decline = document.getElementById('consent-decline');
+  var reset = document.getElementById('consent-withdraw');
+  var resetBtn = document.getElementById('consent-withdraw-btn');
+  if (!banner || !text || !accept || !decline) return;
+
+  text.textContent = CONSENT_TEXT;
+
+  function stored() {
+    try { return localStorage.getItem(KEY); } catch (e) { return null; }
+  }
+  function save(state) {
+    if (window.__analytics && typeof window.__analytics.consent === 'function') {
+      window.__analytics.consent(state);
+      return;
+    }
+    try { localStorage.setItem(KEY, state); } catch (e) {}
+  }
+  function clear() {
+    if (window.__analytics && typeof window.__analytics.clearConsent === 'function') {
+      window.__analytics.clearConsent();
+      return;
+    }
+    try { localStorage.removeItem(KEY); } catch (e) {}
+  }
+  function render() {
+    var choice = stored();
+    var decided = choice === 'granted' || choice === 'denied';
+    banner.hidden = decided;
+    if (reset) reset.hidden = !decided;
+  }
+
+  /* Another tab granted or withdrew: redraw the banner here too, no reload. */
+  window.addEventListener('storage', function (e) {
+    if (e && e.key !== null && e.key !== KEY) return;
+    render();
+  });
+  accept.addEventListener('click', function () { save('granted'); render(); });
+  decline.addEventListener('click', function () { save('denied'); render(); });
+  if (resetBtn) resetBtn.addEventListener('click', function () { clear(); render(); });
+  render();
+}());
+</script>
 </body>
 </html>
