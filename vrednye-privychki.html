@@ -426,6 +426,35 @@
   };
   window.__analytics = api;
 
+  /* Another tab changed the stored choice: apply it here at once, so a grant
+     starts sending and a withdrawal stops it without a reload. A withdrawal
+     removes the key, so its event arrives with newValue null; the stored value
+     decides, not the event. Nothing is written here, so two tabs cannot echo
+     events to each other. */
+  window.addEventListener('storage', function (e) {
+    if (e && e.key !== null && e.key !== CFG.consentKey) return;
+    var stored = null;
+    try { stored = localStorage.getItem(CFG.consentKey); } catch (err) { return; }
+    var granted = stored === 'granted';
+    consentGranted = granted;
+    if (granted) {
+      /* Sending resumes with the next event. This load sent no page_view before
+         the grant, and it does not send one after the fact. */
+      if (!readStored()) {
+        session.id = newSessionId();
+        session.segment = 1;
+        session.lastWall = Date.now();
+        session.lastMono = monoNow();
+        session.hasRecord = false;
+      }
+      session.rotationDue = false;
+    } else {
+      /* Withdrawal: stop sending, remove the session stored for this tab, and
+         let the banner show its unset or declined state again. */
+      dropStoredSession();
+    }
+  });
+
   /* page_view: one per document and one when a new segment opens, and only
      after consent. The consent control calls api.consent('granted') on the
      same load, so the first page_view of that load can still be sent.
@@ -1283,6 +1312,11 @@
     if (reset) reset.hidden = !decided;
   }
 
+  /* Another tab granted or withdrew: redraw the banner here too, no reload. */
+  window.addEventListener('storage', function (e) {
+    if (e && e.key !== null && e.key !== KEY) return;
+    render();
+  });
   accept.addEventListener('click', function () { save('granted'); render(); });
   decline.addEventListener('click', function () { save('denied'); render(); });
   if (resetBtn) resetBtn.addEventListener('click', function () { clear(); render(); });
