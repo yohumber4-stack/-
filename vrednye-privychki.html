@@ -69,17 +69,28 @@
     loadId = 'load-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
   }
 
-  /* Session: one opaque id per 30-minute-inactivity session, kept in
+  /* Session: one opaque id per session of visitor activity, kept in
      sessionStorage so a tab keeps the same id across page loads. No cookie,
-     no personal data, no network call. */
+     no personal data, no network call. Nothing is stored before consent: until
+     the visitor agrees, the session lives in memory for this load only.
+
+     The 30-minute gap counts from real user activity, not from the last
+     emitted event. Inside one page it is measured on the monotonic clock, so a
+     wall-clock jump never splits a session or hides a due one. */
   var SESSION_KEY = 'vp_session_v1';
   var SESSION_GAP_MS = 30 * 60 * 1000;
-  var storageOK = false;
-  try {
-    window.sessionStorage.setItem(SESSION_KEY + '_probe', '1');
-    window.sessionStorage.removeItem(SESSION_KEY + '_probe');
-    storageOK = true;
-  } catch (e) { storageOK = false; }
+  var ACTIVITY_WRITE_MS = 10 * 1000;
+  var storageState = 'unknown';
+
+  function storageAvailable() {
+    if (storageState !== 'unknown') return storageState === 'ok';
+    try {
+      window.sessionStorage.setItem(SESSION_KEY + '_probe', '1');
+      window.sessionStorage.removeItem(SESSION_KEY + '_probe');
+      storageState = 'ok';
+    } catch (e) { storageState = 'blocked'; }
+    return storageState === 'ok';
+  }
 
   function newSessionId() {
     try {
@@ -89,12 +100,32 @@
       Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
   }
 
-  /* In-memory session: the fallback when sessionStorage throws or is absent,
-     and the last resort if reading the stored value fails. */
-  var memSession = { id: newSessionId(), segment: 1, last_activity: Date.now() };
+  /* Monotonic clock: a wall-clock jump cannot move it. */
+  function monoNow() {
+    try {
+      if (self.performance && typeof self.performance.now === 'function') {
+        var t = self.performance.now();
+        if (typeof t === 'number' && isFinite(t)) return t;
+      }
+    } catch (e) {}
+    return null;
+  }
 
-  function readSession() {
-    if (!storageOK) return memSession;
+  /* Live session for this document. sessionStorage holds the id, the segment
+     and the wall-clock stamp; the monotonic stamp never crosses a page load. */
+  var session = {
+    id: newSessionId(),
+    segment: 1,
+    lastWall: Date.now(),
+    lastMono: monoNow(),
+    hasRecord: false,
+    rotationDue: false
+  };
+  var lastWriteWall = 0;
+  var lastWriteMono = null;
+
+  function readStored() {
+    if (!consentGranted || !storageAvailable()) return null;
     try {
       var raw = window.sessionStorage.getItem(SESSION_KEY);
       if (!raw) return null;
@@ -107,31 +138,102 @@
     } catch (e) { return null; }
   }
 
-  function writeSession(rec) {
-    if (!storageOK) { memSession = rec; return; }
-    try { window.sessionStorage.setItem(SESSION_KEY, JSON.stringify(rec)); }
-    catch (e) { storageOK = false; memSession = rec; }
+  /* Adopt the stored id and segment, and only after consent. A record written
+     by another document has no usable monotonic stamp, so the gap across a
+     page load is measured on the wall clock and clamped at zero there. */
+  function syncStored(nowWall, nowMono) {
+    if (!consentGranted) return;
+    var rec = readStored();
+    if (rec) {
+      if (rec.id !== session.id) {
+        session.id = rec.id;
+        session.segment = rec.segment;
+        session.lastWall = rec.last_activity;
+        session.lastMono = null;
+      } else if (rec.segment !== session.segment) {
+        session.segment = rec.segment;
+      }
+      session.hasRecord = true;
+      return;
+    }
+    /* The record vanished inside this document: storage was cleared. Start a
+       new session instead of keeping an id that is no longer stored. */
+    if (session.hasRecord) {
+      session.id = newSessionId();
+      session.segment = 1;
+      session.lastWall = nowWall;
+      session.lastMono = nowMono;
+      session.hasRecord = false;
+      session.rotationDue = false;
+    }
   }
 
-  /* Use one session per 30-minute window of activity. A gap above 30 minutes
-     starts a new session id and the next segment number. */
-  function touchSession() {
-    try {
-      var now = Date.now();
-      var rec = readSession();
-      if (!rec) {
-        rec = { id: newSessionId(), segment: 1, last_activity: now };
-      } else if (now - rec.last_activity > SESSION_GAP_MS) {
-        rec = { id: newSessionId(), segment: rec.segment + 1, last_activity: now };
-      } else {
-        rec.last_activity = now;
-      }
-      writeSession(rec);
-      return rec;
-    } catch (e) {
-      memSession.last_activity = Date.now();
-      return memSession;
+  /* Store the session. Raw activity writes at most once per 10 seconds; every
+     emitted event writes at once. Nothing is written before consent. */
+  function persistSession(force) {
+    if (!consentGranted) return;
+    if (!force) {
+      var since = (lastWriteMono != null) ? monoNow() - lastWriteMono : Date.now() - lastWriteWall;
+      if (since >= 0 && since < ACTIVITY_WRITE_MS) return;
     }
+    if (!storageAvailable()) return;
+    try {
+      window.sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+        id: session.id,
+        segment: session.segment,
+        last_activity: session.lastWall
+      }));
+      lastWriteWall = Date.now();
+      lastWriteMono = monoNow();
+      session.hasRecord = true;
+    } catch (e) { storageState = 'blocked'; }
+  }
+
+  /* Idle time since the last real activity. Monotonic when both ends have one,
+     wall clock otherwise, and a negative wall delta counts as zero. */
+  function idleFor(nowMono) {
+    if (session.lastMono != null && nowMono != null) {
+      var monoGap = nowMono - session.lastMono;
+      return monoGap > 0 ? monoGap : 0;
+    }
+    var wallGap = Date.now() - session.lastWall;
+    return wallGap > 0 ? wallGap : 0;
+  }
+
+  /* Real user activity keeps the session alive and emits nothing. */
+  function noteActivity() {
+    if (idleFor(monoNow()) > SESSION_GAP_MS) session.rotationDue = true;
+    session.lastWall = Date.now();
+    session.lastMono = monoNow();
+    persistSession(false);
+  }
+
+  /* One session lookup per emitted event. A gap above 30 minutes starts a new
+     session id and the next segment number. */
+  function resolveSession() {
+    var nowWall = Date.now();
+    var nowMono = monoNow();
+    syncStored(nowWall, nowMono);
+    var rotated = false;
+    if (session.rotationDue || idleFor(nowMono) > SESSION_GAP_MS) {
+      session.id = newSessionId();
+      session.segment += 1;
+      rotated = true;
+    }
+    session.rotationDue = false;
+    session.lastWall = nowWall;
+    session.lastMono = nowMono;
+    persistSession(true);
+    return { id: session.id, segment: session.segment, rotated: rotated };
+  }
+
+  /* Refusal and withdrawal leave no stored session behind. */
+  function dropStoredSession() {
+    try { window.sessionStorage.removeItem(SESSION_KEY); } catch (e) {}
+    session.hasRecord = false;
+    session.rotationDue = false;
+    lastWriteWall = 0;
+    lastWriteMono = null;
   }
 
   var t0 = Date.now();
@@ -173,14 +275,25 @@
     } catch (e) {}
   }
 
-  function emit(name, props) {
+  /* Properties of page_view. The load-time event and the event that opens a
+     new segment carry exactly these fields. */
+  function pageViewProperties() {
+    return {
+      surface: CFG.surface,
+      page_path: location.pathname.slice(0, 120),
+      page_title: cleanText(document.title, 120),
+      language: (root.getAttribute('lang') || 'ru').slice(0, 8),
+      environment: env
+    };
+  }
+
+  function recordEvent(name, props, sess) {
     seq += 1;
-    var session = touchSession();
     var properties = {
       is_internal: isInternal,
       load_id: loadId,
-      session_id: session.id,
-      session_segment: session.segment,
+      session_id: sess.id,
+      session_segment: sess.segment,
       event_id: loadId + ':' + name + ':' + seq
     };
     for (var key in props) {
@@ -190,6 +303,17 @@
     sink.push(record);
     transmit(record);
     return record;
+  }
+
+  /* One session lookup per event. When the lookup rotates, the new segment
+     opens with a single page_view and the current event follows it. The opening
+     page_view is recorded directly, so it never runs the rotation path again. */
+  function emit(name, props) {
+    var sess = resolveSession();
+    if (sess.rotated && name !== 'page_view') {
+      recordEvent('page_view', pageViewProperties(), sess);
+    }
+    return recordEvent(name, props, sess);
   }
 
   function emitOnce(name, props) {
@@ -238,21 +362,61 @@
         surface: CFG.surface,
         print_scope: scope || CFG.printScope || 'unknown'
       });
+    },
+    /* Consent control for the banner. A grant starts the session and its
+       page_view; a refusal removes any session stored for this tab. */
+    consent: function (state) {
+      var granted = state === 'granted';
+      try { localStorage.setItem(CFG.consentKey, granted ? 'granted' : 'denied'); } catch (e) {}
+      consentGranted = granted;
+      if (granted) {
+        /* A transient session from before consent has no stored history: this
+           load starts it at segment 1 with exactly one page_view. */
+        if (!readStored()) {
+          session.id = newSessionId();
+          session.segment = 1;
+          session.lastWall = Date.now();
+          session.lastMono = monoNow();
+          session.hasRecord = false;
+          session.rotationDue = false;
+        }
+        emitPageView();
+      } else {
+        dropStoredSession();
+      }
+      return granted;
+    },
+    /* Withdrawal: remove the stored choice and the stored session. */
+    clearConsent: function () {
+      try { localStorage.removeItem(CFG.consentKey); } catch (e) {}
+      consentGranted = false;
+      dropStoredSession();
     }
   };
   window.__analytics = api;
 
-  /* page_view: exactly one per document */
-  emitOnce('page_view', {
-    surface: CFG.surface,
-    page_path: location.pathname.slice(0, 120),
-    page_title: cleanText(document.title, 120),
-    language: (root.getAttribute('lang') || 'ru').slice(0, 8),
-    environment: env
-  });
+  /* page_view: one per document, and one when a new segment opens */
+  function emitPageView() {
+    return emitOnce('page_view', pageViewProperties());
+  }
+  emitPageView();
 
   /* print_intent: beforeprint, once per load */
   window.addEventListener('beforeprint', function () { api.print(); });
+
+  /* Real user activity keeps the session alive: pointer, key, wheel, touch,
+     scroll and a tab that becomes visible again. Scroll does not bubble, so
+     this listens in the capture phase, passively. */
+  (function () {
+    var activityEvents = ['pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll'];
+    for (var i = 0; i < activityEvents.length; i += 1) {
+      try { window.addEventListener(activityEvents[i], noteActivity, { passive: true, capture: true }); }
+      catch (e) { try { window.addEventListener(activityEvents[i], noteActivity, true); } catch (e2) {} }
+    }
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') noteActivity();
+    });
+  }());
 
   /* CTA and download: one delegated listener, so dedupe lives in one place.
      The download link fires file_download only, never cta_click. */
