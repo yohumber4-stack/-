@@ -426,6 +426,18 @@
   };
   window.__analytics = api;
 
+  /* Another tab changed the stored choice: apply it here at once, so a grant
+     starts sending and a withdrawal stops sending without a reload. A
+     withdrawal removes the key, so its event arrives with newValue null. */
+  window.addEventListener('storage', function (e) {
+    if (e && e.key !== null && e.key !== CFG.consentKey) return;
+    var stored = null;
+    try { stored = localStorage.getItem(CFG.consentKey); } catch (err) { return; }
+    if (stored === 'granted') api.consent('granted');
+    else if (stored === 'denied') api.consent('denied');
+    else api.clearConsent();
+  });
+
   /* page_view: one per document and one when a new segment opens, and only
      after consent. The consent control calls api.consent('granted') on the
      same load, so the first page_view of that load can still be sent.
@@ -1282,6 +1294,12 @@
     banner.hidden = decided;
     if (reset) reset.hidden = !decided;
   }
+
+  /* Another tab granted or withdrew: redraw the banner here too. */
+  window.addEventListener('storage', function (e) {
+    if (e && e.key !== null && e.key !== KEY) return;
+    render();
+  });
 
   accept.addEventListener('click', function () { save('granted'); render(); });
   decline.addEventListener('click', function () { save('denied'); render(); });
