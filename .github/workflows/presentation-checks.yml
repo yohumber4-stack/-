@@ -52,9 +52,10 @@ jobs:
           node --version
           python3 --version
 
-      - name: Inline scripts parse
+      - name: Inline scripts parse on every page
         env:
           CHECK_INLINE_SCRIPTS: |
+            import glob
             import os
             import subprocess
             import sys
@@ -86,12 +87,18 @@ jobs:
                         self.pending = None
 
 
-            files = [os.environ['DECK'], os.environ['TEXT']]
+            # Every HTML page in the repository root. A page that does not exist in
+            # this tree is simply absent from the list, so a branch without the
+            # entry page is still checked and does not fail on a missing file.
+            pages = sorted(glob.glob('*.html'))
+            if not pages:
+                print('no *.html page in the repository root, nothing to parse')
+                sys.exit(0)
             workdir = tempfile.mkdtemp(prefix='inline-js-')
             problems = []
             checked = 0
 
-            for name in files:
+            for name in pages:
                 with open(name, encoding='utf-8') as handle:
                     source = handle.read()
                 parser = ScriptBlocks()
@@ -122,9 +129,9 @@ jobs:
                         print(result.stderr.strip())
 
             if checked == 0:
-                problems.append((files[0], 1, 'no inline <script> block found in %s or %s' % (files[0], files[1])))
+                problems.append((pages[0], 1, 'no inline <script> block found in %s' % ', '.join(pages)))
 
-            print('parsed %d inline script block(s) from %d file(s)' % (checked, len(files)))
+            print('parsed %d inline script block(s) from %d file(s)' % (checked, len(pages)))
             for name, line, message in problems:
                 print('::error file=%s,line=%d::%s' % (name, line, message))
             sys.exit(1 if problems else 0)
@@ -133,10 +140,10 @@ jobs:
           : "${CHECK_INLINE_SCRIPTS:?check program is empty}"
           python3 -X utf8 -c "$CHECK_INLINE_SCRIPTS"
 
-      - name: HTML tags are balanced
+      - name: HTML tags are balanced on every page
         env:
           CHECK_TAGS: |
-            import os
+            import glob
             import sys
 
             from html.parser import HTMLParser
@@ -214,9 +221,15 @@ jobs:
                     del self.stack[matching:]
 
 
-            files = [os.environ['DECK'], os.environ['TEXT']]
+            # Every HTML page in the repository root. A page that does not exist in
+            # this tree is simply absent from the list, so a branch without the
+            # entry page is still checked and does not fail on a missing file.
+            pages = sorted(glob.glob('*.html'))
+            if not pages:
+                print('no *.html page in the repository root, nothing to check')
+                sys.exit(0)
             failed = False
-            for name in files:
+            for name in pages:
                 with open(name, encoding='utf-8') as handle:
                     source = handle.read()
                 parser = Balance()
