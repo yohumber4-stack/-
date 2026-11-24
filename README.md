@@ -31,3 +31,14 @@ npm install
 npm run release   # собирает dist/index.html и копирует его в TheLongRoad.html
 npm run dev       # локальный сервер с пересборкой: http://localhost:3000
 ```
+
+## Тесты
+
+```bash
+npm ci
+npm run build                      # харнесс открывает dist/index.html
+node tests/run.mjs tests/boot.mjs   # headless-прогон одного сценария
+```
+
+Нужен Chrome или Chromium для Linux или macOS. Браузер ищется в `$CHROME_PATH` / `$CHROME_BIN`, `~/.agent-browser/browsers`, кэше Playwright и обычных путях установки.
+Если браузера нет, харнесс печатает подсказку и выходит с кодом 0.

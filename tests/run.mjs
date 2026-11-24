@@ -3,7 +3,7 @@
 import { chromium } from 'playwright-core';
 import fs from 'node:fs';
 import path from 'node:path';
-import os from 'node:os';
+import { findChrome, NO_BROWSER_MESSAGE } from './browser.mjs';
 
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
@@ -13,9 +13,13 @@ const base = opt('url', 'http://localhost:3000/');
 const outDir = path.resolve(opt('out', '.hoplite/artifacts'));
 fs.mkdirSync(outDir, { recursive: true });
 
-const chromeDir = path.join(os.homedir(), '.agent-browser/browsers');
-const chromeVer = fs.readdirSync(chromeDir).find((d) => d.startsWith('chrome'));
-const executablePath = path.join(chromeDir, chromeVer, 'chrome');
+const executablePath = findChrome();
+if (!executablePath) {
+  // Flush the hint before exiting, so a piped terminal still shows it.
+  await new Promise((resolve) => process.stdout.write(NO_BROWSER_MESSAGE + '\n', resolve));
+  process.exit(0);
+}
+console.log('[harness] chrome:', executablePath);
 
 const browser = await chromium.launch({
   executablePath,

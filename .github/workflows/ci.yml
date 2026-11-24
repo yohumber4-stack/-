@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24.22.2'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      # The repo has no linter, so check that every script at least parses.
+      - name: Syntax check
+        run: for f in tests/*.mjs tools/*.mjs; do node --check "$f"; done
+
+      - name: Typecheck
+        run: npx tsc --noEmit -p .
+
+      # The committed artifact must equal a fresh build: same bytes, same hash.
+      # A content change that updates both files on purpose still passes.
+      - name: Rebuild release and compare with the committed artifact
+        run: |
+          npm run release
+          echo "size=$(stat -c %s TheLongRoad.html)"
+          echo "sha256=$(sha256sum TheLongRoad.html | cut -d' ' -f1)"
+          if ! git diff --exit-code -- TheLongRoad.html; then
+            echo "::error::TheLongRoad.html does not match a fresh npm run release"
+            exit 1
+          fi
+
+      # Regression guard: the harness must not depend on ~/.agent-browser.
+      - name: Harness finds a browser with an empty HOME
+        run: |
+          empty_home="$RUNNER_TEMP/empty-home"
+          mkdir -p "$empty_home"
+          out=$(HOME="$empty_home" node tests/run.mjs tests/harness.mjs --out "$RUNNER_TEMP/artifacts")
+          echo "$out"
+          if ! printf '%s\n' "$out" | grep -q '^\[harness\] chrome: '; then
+            echo "::error::harness did not reach a browser with an empty HOME"
+            exit 1
+          fi
