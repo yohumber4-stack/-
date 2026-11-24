@@ -80,6 +80,7 @@
   var SESSION_KEY = 'vp_session_v1';
   var SESSION_GAP_MS = 30 * 60 * 1000;
   var ACTIVITY_WRITE_MS = 10 * 1000;
+  var CTA_DEBOUNCE_MS = 500;
   var storageState = 'unknown';
 
   function storageAvailable() {
@@ -109,6 +110,33 @@
       }
     } catch (e) {}
     return null;
+  }
+
+  /* Elapsed time since the page opened. Monotonic inside the document, so a
+     wall-clock jump cannot make a duration negative or inflate it. */
+  function sincePageOpen(wallStart, monoStart) {
+    var nowMono = monoNow();
+    if (monoStart != null && nowMono != null) {
+      var monoMs = nowMono - monoStart;
+      return monoMs > 0 ? monoMs : 0;
+    }
+    var wallMs = Date.now() - wallStart;
+    return wallMs > 0 ? wallMs : 0;
+  }
+
+  /* CTA debounce on the monotonic clock. A backward wall jump used to drop real
+     repeat clicks until the clock caught up, and a forward jump let duplicates
+     through. The 500 ms window and the per-target keying stay the same. */
+  function ctaDebounced(target) {
+    var prev = lastCta[target];
+    if (!prev) return false;
+    var nowMono = monoNow();
+    var delta = (prev.mono != null && nowMono != null) ? nowMono - prev.mono : Date.now() - prev.wall;
+    return delta >= 0 && delta < CTA_DEBOUNCE_MS;
+  }
+
+  function markCta(target) {
+    lastCta[target] = { mono: monoNow(), wall: Date.now() };
   }
 
   /* Live session for this document. sessionStorage holds the id, the segment
@@ -237,6 +265,7 @@
   }
 
   var t0 = Date.now();
+  var t0Mono = monoNow();
   var seq = 0;
   var oneShot = {};
   var sink = [];
@@ -352,7 +381,7 @@
           deck_id: CFG.deckId,
           slide_total: t,
           slide_last_index: i,
-          seconds_since_deck_open: Math.min(7200, Math.round((Date.now() - t0) / 1000))
+          seconds_since_deck_open: Math.min(7200, Math.round(sincePageOpen(t0, t0Mono) / 1000))
         });
       }
       return record;
@@ -440,9 +469,8 @@
 
     var target = a.getAttribute('data-cta');
     if (!target) return;
-    var now = Date.now();
-    if (lastCta[target] && now - lastCta[target] < 500) return;
-    lastCta[target] = now;
+    if (ctaDebounced(target)) return;
+    markCta(target);
     var label = a.firstChild && a.firstChild.nodeType === 3 ? a.firstChild.textContent : a.textContent;
     var targetPath;
     try { targetPath = new URL(href, location.href).pathname.slice(0, 120); }
