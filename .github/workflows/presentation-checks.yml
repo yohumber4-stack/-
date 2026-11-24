@@ -432,3 +432,121 @@ jobs:
           set -euo pipefail
           : "${CHECK_SLIDES:?check program is empty}"
           python3 -X utf8 -c "$CHECK_SLIDES"
+
+      # The instrumentation snippet is one constant that every page which reports
+      # analytics events has to carry. It changed four times in 26 hours, and each
+      # copy was rebuilt by hand, so one page can quietly fall behind another and
+      # nothing here would notice. This is the only place where the workflow
+      # compares text, and it compares this fixed banner with itself, never prose:
+      # a page either carries the snippet or it does not, so an ordinary edit
+      # elsewhere cannot trip the check. A tree where no page carries the snippet
+      # has nothing to compare and passes, which keeps the default branch quiet.
+      - name: Instrumentation snippet is identical on every page that carries it
+        env:
+          CHECK_SNIPPET: |
+            import glob
+            import sys
+
+            from html.parser import HTMLParser
+
+            # The banner that opens the instrumentation snippet. Any inline <script>
+            # block whose body contains it is the snippet, wherever the block sits.
+            MARKER = 'VPAnalytics v1'
+
+
+            class ScriptBlocks(HTMLParser):
+                """Record the raw character span of every inline <script> block."""
+
+                def __init__(self, source):
+                    super().__init__(convert_charrefs=False)
+                    self.source = source
+                    self.line_starts = [0]
+                    for line in source.splitlines(True):
+                        self.line_starts.append(self.line_starts[-1] + len(line))
+                    self.blocks = []
+                    self.open = None
+
+                def position(self):
+                    """Absolute character offset of the tag being handled."""
+                    line, column = self.getpos()
+                    return self.line_starts[line - 1] + column
+
+                def handle_starttag(self, tag, attrs):
+                    if tag != 'script' or self.open is not None:
+                        return
+                    head_end = self.source.find('>', self.position())
+                    if head_end >= 0:
+                        self.open = {'line': self.getpos()[0], 'body': head_end + 1}
+
+                def handle_endtag(self, tag):
+                    if tag != 'script' or self.open is None:
+                        return
+                    body = self.source[self.open['body']:self.position()]
+                    self.blocks.append({'line': self.open['line'], 'body': body})
+                    self.open = None
+
+
+            def first_difference(reference, other):
+                """Byte offset of the first difference, or the shorter block length."""
+                for index in range(min(len(reference), len(other))):
+                    if reference[index] != other[index]:
+                        return index
+                return min(len(reference), len(other))
+
+
+            def excerpt(data, offset, width=44):
+                """A short one-line window around a byte offset."""
+                start = max(0, offset - width)
+                text = data[start:offset + width].decode('utf-8', 'replace')
+                return text.replace('\r', '\\r').replace('\n', '\\n')
+
+
+            problems = []
+            carriers = []
+            for name in sorted(glob.glob('*.html')):
+                with open(name, encoding='utf-8', newline='') as handle:
+                    source = handle.read()
+                parser = ScriptBlocks(source)
+                parser.feed(source)
+                parser.close()
+                blocks = [block for block in parser.blocks if MARKER in block['body']]
+                if not blocks:
+                    continue
+                if len(blocks) > 1:
+                    problems.append((name, blocks[1]['line'],
+                                     'carries %d copies of the instrumentation snippet' % len(blocks)))
+                carriers.append((name, blocks[0]['line'], blocks[0]['body'].encode('utf-8')))
+
+            if not carriers:
+                print('no page in the repository root carries the instrumentation snippet, nothing to compare')
+                sys.exit(0)
+
+            print('%d page(s) carry the instrumentation snippet' % len(carriers))
+            for name, line, data in carriers:
+                print('  %s: block starts at line %d, %d bytes' % (name, line, len(data)))
+
+            reference_name, reference_line, reference = carriers[0]
+            for name, line, data in carriers[1:]:
+                if data == reference:
+                    continue
+                offset = first_difference(reference, data)
+                problems.append((name, line, 'instrumentation snippet differs from %s at byte %d '
+                                             '(%s has %d bytes, %s has %d bytes)'
+                                 % (reference_name, offset, name, len(data),
+                                    reference_name, len(reference))))
+                print('  first difference at byte %d' % offset)
+                print('    %s (block at line %d): %s' % (reference_name, reference_line,
+                                                         excerpt(reference, offset)))
+                print('    %s (block at line %d): %s' % (name, line, excerpt(data, offset)))
+
+            for name, line, message in problems:
+                print('::error file=%s,line=%d::%s' % (name, line, message))
+            print('snippet identity: %s' % ('FAILED' if problems else 'OK'))
+            sys.exit(1 if problems else 0)
+        run: |
+          set -euo pipefail
+          : "${CHECK_SNIPPET:?check program is empty}"
+          program="$(mktemp)"
+          printf '%s\n' "$CHECK_SNIPPET" > "$program"
+          python3 -X utf8 "$program"
+          rm -f "$program"
