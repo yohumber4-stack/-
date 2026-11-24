@@ -252,10 +252,10 @@ jobs:
           : "${CHECK_TAGS:?check program is empty}"
           python3 -X utf8 -c "$CHECK_TAGS"
 
-      - name: No external resource references
+      - name: No external resource references on every page
         env:
           CHECK_OFFLINE: |
-            import os
+            import glob
             import re
             import sys
 
@@ -319,11 +319,17 @@ jobs:
                         self.in_style = None
 
 
-            files = [os.environ['DECK'], os.environ['TEXT']]
+            # Every HTML page in the repository root. A page that does not exist in
+            # this tree is simply absent from the list, so a branch without the
+            # entry page is still checked and does not fail on a missing file.
+            pages = sorted(glob.glob('*.html'))
+            if not pages:
+                print('no *.html page in the repository root, nothing to check')
+                sys.exit(0)
             failed = False
             total_values = 0
             total_css = 0
-            for name in files:
+            for name in pages:
                 with open(name, encoding='utf-8') as handle:
                     source = handle.read()
                 parser = Refs()
