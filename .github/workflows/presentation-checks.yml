@@ -63,6 +63,13 @@ jobs:
 
             from html.parser import HTMLParser
 
+            # <script> types whose body is JavaScript that node --check can parse. A
+            # missing or empty type is JavaScript, the HTML default. Any other type,
+            # such as application/octet-stream or text/template, holds data and is
+            # skipped instead of being fed to the parser.
+            JAVASCRIPT_TYPES = {'', 'module', 'text/javascript', 'application/javascript',
+                                'application/x-javascript', 'text/ecmascript', 'application/ecmascript'}
+
 
             class ScriptBlocks(HTMLParser):
                 """Collect the body of every inline <script> element."""
@@ -110,12 +117,18 @@ jobs:
                 for index, block in enumerate(parser.blocks, 1):
                     line = block['line']
                     code = block['code']
+                    declared = (block['attrs'].get('type') or '').strip()
+                    kind = declared.lower()
                     if 'src' in block['attrs']:
                         print('  block %d (line %d): uses src, inline body is empty' % (index, line))
+                    if kind not in JAVASCRIPT_TYPES:
+                        print('  %s: block %d (line %d): type="%s" is not JavaScript, skipped' % (
+                            name, index, line, declared))
+                        continue
                     if not code.strip():
                         print('  block %d (line %d): empty, nothing to parse' % (index, line))
                         continue
-                    is_module = (block['attrs'].get('type') or '').strip().lower() == 'module'
+                    is_module = kind == 'module'
                     suffix = '.mjs' if is_module else '.js'
                     path = os.path.join(workdir, '%s.%d%s' % (os.path.basename(name), index, suffix))
                     with open(path, 'w', encoding='utf-8') as handle:
