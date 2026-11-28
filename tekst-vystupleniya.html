@@ -1,9 +1,525 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-surface="text" data-print-scope="text_page">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Текст выступления — Вредные привычки</title>
+<script>
+/* VPAnalytics v1 — page-load-scoped, deny-by-default consent, no personal data.
+   Insert as one inline <script> block immediately after </title> on each page.
+   Page config comes from attributes on <html>:
+     data-surface="deck|text|index"
+     data-deck-id="vrednye-privychki" data-deck-total="8"  (deck only)
+     data-print-scope="deck_all_slides|text_page"
+   Test-only overrides may be set in window.VPAnalyticsConfig before this block.
+   Never put an endpoint or host allowlist in a production page until the owner
+   confirms the legal basis and the consent control exists. */
+(function () {
+  'use strict';
+
+  var CFG = {
+    surface: 'unknown',
+    deckId: '',
+    deckTotal: 0,
+    printScope: '',
+    endpoint: '',
+    hosts: [],
+    consentKey: 'analytics_consent',
+    internalParams: ['internal', 'test'],
+    debugParam: 'debug_track',
+    environment: ''
+  };
+  var U = window.VPAnalyticsConfig || {};
+  for (var k in CFG) {
+    if (Object.prototype.hasOwnProperty.call(CFG, k) && Object.prototype.hasOwnProperty.call(U, k)) CFG[k] = U[k];
+  }
+
+  var root = document.documentElement;
+  if (root.getAttribute('data-surface')) CFG.surface = root.getAttribute('data-surface');
+  if (root.getAttribute('data-deck-id')) CFG.deckId = root.getAttribute('data-deck-id');
+  if (root.getAttribute('data-deck-total')) CFG.deckTotal = parseInt(root.getAttribute('data-deck-total'), 10) || 0;
+  if (root.getAttribute('data-print-scope')) CFG.printScope = root.getAttribute('data-print-scope');
+
+  var params;
+  try { params = new URLSearchParams(location.search); }
+  catch (e) { params = { get: function () { return null; } }; }
+
+  var env = CFG.environment;
+  if (!env) {
+    if (CFG.hosts.indexOf(location.hostname) !== -1) env = 'production';
+    else if (location.protocol === 'file:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1') env = 'local';
+    else env = 'staging';
+  }
+
+  var isInternal = CFG.internalParams.some(function (p) { return params.get(p) === '1'; });
+  var isDebug = params.get(CFG.debugParam) === '1';
+  var isBot = navigator.webdriver === true ||
+    /bot|crawler|spider|headless|preview|prerender/i.test(navigator.userAgent || '');
+  var privacyRefusal = navigator.doNotTrack === '1' || navigator.globalPrivacyControl === true;
+
+  var consentGranted = false;
+  try { consentGranted = localStorage.getItem(CFG.consentKey) === 'granted'; } catch (e) {}
+
+  var loadId;
+  try {
+    loadId = (self.crypto && typeof self.crypto.randomUUID === 'function')
+      ? self.crypto.randomUUID()
+      : 'load-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+  } catch (e) {
+    loadId = 'load-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+  }
+
+  /* Session: one opaque id per session of visitor activity, kept in
+     sessionStorage so a tab keeps the same id across page loads. No cookie,
+     no personal data, no network call. Nothing is stored before consent: until
+     the visitor agrees, the session lives in memory for this load only.
+
+     The 30-minute gap counts from real user activity, not from the last
+     emitted event. Inside one page it is measured on the monotonic clock, so a
+     wall-clock jump never splits a session or hides a due one. */
+  var SESSION_KEY = 'vp_session_v1';
+  var SESSION_GAP_MS = 30 * 60 * 1000;
+  var ACTIVITY_WRITE_MS = 10 * 1000;
+  var CTA_DEBOUNCE_MS = 500;
+  var storageState = 'unknown';
+
+  function storageAvailable() {
+    if (storageState !== 'unknown') return storageState === 'ok';
+    try {
+      window.sessionStorage.setItem(SESSION_KEY + '_probe', '1');
+      window.sessionStorage.removeItem(SESSION_KEY + '_probe');
+      storageState = 'ok';
+    } catch (e) { storageState = 'blocked'; }
+    return storageState === 'ok';
+  }
+
+  function newSessionId() {
+    try {
+      if (self.crypto && typeof self.crypto.randomUUID === 'function') return self.crypto.randomUUID();
+    } catch (e) {}
+    return 'sess-' + Date.now().toString(36) + '-' +
+      Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
+  }
+
+  /* Monotonic clock: a wall-clock jump cannot move it. */
+  function monoNow() {
+    try {
+      if (self.performance && typeof self.performance.now === 'function') {
+        var t = self.performance.now();
+        if (typeof t === 'number' && isFinite(t)) return t;
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  /* Elapsed time since the page opened. Monotonic inside the document, so a
+     wall-clock jump cannot make a duration negative or inflate it. */
+  function sincePageOpen(wallStart, monoStart) {
+    var nowMono = monoNow();
+    if (monoStart != null && nowMono != null) {
+      var monoMs = nowMono - monoStart;
+      return monoMs > 0 ? monoMs : 0;
+    }
+    var wallMs = Date.now() - wallStart;
+    return wallMs > 0 ? wallMs : 0;
+  }
+
+  /* CTA debounce on the monotonic clock. A backward wall jump used to drop real
+     repeat clicks until the clock caught up, and a forward jump let duplicates
+     through. The 500 ms window and the per-target keying stay the same. */
+  function ctaDebounced(target) {
+    var prev = lastCta[target];
+    if (!prev) return false;
+    var nowMono = monoNow();
+    var delta = (prev.mono != null && nowMono != null) ? nowMono - prev.mono : Date.now() - prev.wall;
+    return delta >= 0 && delta < CTA_DEBOUNCE_MS;
+  }
+
+  function markCta(target) {
+    lastCta[target] = { mono: monoNow(), wall: Date.now() };
+  }
+
+  /* Live session for this document. sessionStorage holds the id, the segment
+     and the wall-clock stamp; the monotonic stamp never crosses a page load. */
+  var session = {
+    id: newSessionId(),
+    segment: 1,
+    lastWall: Date.now(),
+    lastMono: monoNow(),
+    hasRecord: false,
+    rotationDue: false
+  };
+  var lastWriteWall = 0;
+  var lastWriteMono = null;
+
+  function readStored() {
+    if (!consentGranted || !storageAvailable()) return null;
+    try {
+      var raw = window.sessionStorage.getItem(SESSION_KEY);
+      if (!raw) return null;
+      var rec = JSON.parse(raw);
+      if (!rec || typeof rec.id !== 'string' || !rec.id) return null;
+      var seg = parseInt(rec.segment, 10);
+      var last = parseInt(rec.last_activity, 10);
+      if (!(seg >= 1) || !isFinite(last)) return null;
+      return { id: rec.id, segment: seg, last_activity: last };
+    } catch (e) { return null; }
+  }
+
+  /* Adopt the stored id and segment, and only after consent. A record written
+     by another document has no usable monotonic stamp, so the gap across a
+     page load is measured on the wall clock and clamped at zero there. */
+  function syncStored(nowWall, nowMono) {
+    if (!consentGranted) return;
+    var rec = readStored();
+    if (rec) {
+      if (rec.id !== session.id) {
+        session.id = rec.id;
+        session.segment = rec.segment;
+        session.lastWall = rec.last_activity;
+        session.lastMono = null;
+      } else if (rec.segment !== session.segment) {
+        session.segment = rec.segment;
+      }
+      session.hasRecord = true;
+      return;
+    }
+    /* The record vanished inside this document: storage was cleared. Start a
+       new session instead of keeping an id that is no longer stored. */
+    if (session.hasRecord) {
+      session.id = newSessionId();
+      session.segment = 1;
+      session.lastWall = nowWall;
+      session.lastMono = nowMono;
+      session.hasRecord = false;
+      session.rotationDue = false;
+    }
+  }
+
+  /* Store the session. Raw activity writes at most once per 10 seconds; every
+     emitted event writes at once. Nothing is written before consent. */
+  function persistSession(force) {
+    if (!consentGranted) return;
+    if (!force) {
+      var since = (lastWriteMono != null) ? monoNow() - lastWriteMono : Date.now() - lastWriteWall;
+      if (since >= 0 && since < ACTIVITY_WRITE_MS) return;
+    }
+    if (!storageAvailable()) return;
+    try {
+      window.sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+        id: session.id,
+        segment: session.segment,
+        last_activity: session.lastWall
+      }));
+      lastWriteWall = Date.now();
+      lastWriteMono = monoNow();
+      session.hasRecord = true;
+    } catch (e) { storageState = 'blocked'; }
+  }
+
+  /* Idle time since the last real activity. Monotonic when both ends have one,
+     wall clock otherwise, and a negative wall delta counts as zero. */
+  function idleFor(nowMono) {
+    if (session.lastMono != null && nowMono != null) {
+      var monoGap = nowMono - session.lastMono;
+      return monoGap > 0 ? monoGap : 0;
+    }
+    var wallGap = Date.now() - session.lastWall;
+    return wallGap > 0 ? wallGap : 0;
+  }
+
+  /* Real user activity keeps the session alive and emits nothing. */
+  function noteActivity() {
+    if (idleFor(monoNow()) > SESSION_GAP_MS) session.rotationDue = true;
+    session.lastWall = Date.now();
+    session.lastMono = monoNow();
+    persistSession(false);
+  }
+
+  /* One session lookup per emitted event. A gap above 30 minutes starts a new
+     session id and the next segment number. */
+  function resolveSession() {
+    var nowWall = Date.now();
+    var nowMono = monoNow();
+    syncStored(nowWall, nowMono);
+    var rotated = false;
+    if (session.rotationDue || idleFor(nowMono) > SESSION_GAP_MS) {
+      session.id = newSessionId();
+      session.segment += 1;
+      rotated = true;
+    }
+    session.rotationDue = false;
+    session.lastWall = nowWall;
+    session.lastMono = nowMono;
+    persistSession(true);
+    return { id: session.id, segment: session.segment, rotated: rotated };
+  }
+
+  /* Refusal and withdrawal leave no stored session behind. */
+  function dropStoredSession() {
+    try { window.sessionStorage.removeItem(SESSION_KEY); } catch (e) {}
+    session.hasRecord = false;
+    session.rotationDue = false;
+    lastWriteWall = 0;
+    lastWriteMono = null;
+  }
+
+  var t0 = Date.now();
+  var t0Mono = monoNow();
+  var seq = 0;
+  var oneShot = {};
+  var sink = [];
+  var lastSlide = null;
+  var viewSeq = 0;
+  var lastCta = {};
+
+  window.__trackedEvents = sink;
+
+  function cleanText(value, max) {
+    return String(value == null ? '' : value).replace(/\s+/g, ' ').trim().slice(0, max || 120);
+  }
+
+  function canSend() {
+    return !!CFG.endpoint && consentGranted && !isInternal && !isDebug &&
+      env === 'production' && !isBot && !privacyRefusal;
+  }
+
+  function transmit(payload) {
+    if (!canSend()) return;
+    var body = JSON.stringify(payload);
+    /* A string body is sent as text/plain, which is CORS-safelisted, so a
+       cross-origin collector receives it without a preflight. A JSON Blob
+       (application/json) triggers a preflight that sendBeacon cannot answer,
+       and the beacon is silently dropped. The collector parses the JSON. */
+    try {
+      if (navigator.sendBeacon && navigator.sendBeacon(CFG.endpoint, body)) return;
+    } catch (e) {}
+    try {
+      fetch(CFG.endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+        body: body,
+        keepalive: true
+      });
+    } catch (e) {}
+  }
+
+  /* Properties of page_view. The load-time event and the event that opens a
+     new segment carry exactly these fields. */
+  function pageViewProperties() {
+    return {
+      surface: CFG.surface,
+      page_path: location.pathname.slice(0, 120),
+      page_title: cleanText(document.title, 120),
+      language: (root.getAttribute('lang') || 'ru').slice(0, 8),
+      environment: env
+    };
+  }
+
+  function recordEvent(name, props, sess) {
+    seq += 1;
+    var properties = {
+      environment: env,
+      is_internal: isInternal,
+      load_id: loadId,
+      session_id: sess.id,
+      session_segment: sess.segment,
+      event_id: loadId + ':' + name + ':' + seq
+    };
+    for (var key in props) {
+      if (Object.prototype.hasOwnProperty.call(props, key)) properties[key] = props[key];
+    }
+    var record = { event: name, properties: properties };
+    sink.push(record);
+    transmit(record);
+    return record;
+  }
+
+  /* One session lookup per event. When the lookup rotates, the new segment
+     opens with a single page_view and the current event follows it. The opening
+     page_view is recorded directly, so it never runs the rotation path again. */
+  function emit(name, props) {
+    var sess = resolveSession();
+    if (sess.rotated && name !== 'page_view') {
+      recordEvent('page_view', pageViewProperties(), sess);
+    }
+    return recordEvent(name, props, sess);
+  }
+
+  function emitOnce(name, props) {
+    if (oneShot[name]) return null;
+    oneShot[name] = true;
+    return emit(name, props);
+  }
+
+  var api = {
+    loadId: loadId,
+    environment: env,
+    isInternal: isInternal,
+    track: emit,
+    slide: function (index, total, title, navigation) {
+      var i = parseInt(index, 10);
+      var t = parseInt(total, 10) || CFG.deckTotal;
+      if (!(i >= 1)) return null;
+      /* Dedupe: one event per entered index. A call that keeps the same index
+         fires nothing; a revisit after leaving fires with a higher view_sequence. */
+      if (lastSlide === i) return null;
+      lastSlide = i;
+      viewSeq += 1;
+      var record = emit('slide_view', {
+        surface: 'deck',
+        deck_id: CFG.deckId,
+        slide_index: i,
+        slide_total: t,
+        slide_title: cleanText(title, 120),
+        navigation: navigation || 'unknown',
+        view_sequence: viewSeq
+      });
+      /* deck_complete needs two entered slides, so a deep link straight to the
+         last slide is not a completed view. */
+      if (i === t && viewSeq >= 2) {
+        emitOnce('deck_complete', {
+          deck_id: CFG.deckId,
+          slide_total: t,
+          slide_last_index: i,
+          seconds_since_deck_open: Math.min(7200, Math.round(sincePageOpen(t0, t0Mono) / 1000))
+        });
+      }
+      return record;
+    },
+    print: function (scope) {
+      return emitOnce('print_intent', {
+        surface: CFG.surface,
+        print_scope: scope || CFG.printScope || 'unknown'
+      });
+    },
+    /* Consent hook for the banner. Stores only 'granted' or 'denied' under
+       CFG.consentKey, then starts or stops sending without a reload. A grant
+       starts the session and its page_view; a refusal removes any session
+       stored for this tab. */
+    consent: function (state) {
+      var granted = state === 'granted';
+      try { localStorage.setItem(CFG.consentKey, granted ? 'granted' : 'denied'); } catch (e) {}
+      consentGranted = granted;
+      if (granted) {
+        /* A transient session from before consent has no stored history: this
+           load starts it at segment 1 with exactly one page_view. */
+        if (!readStored()) {
+          session.id = newSessionId();
+          session.segment = 1;
+          session.lastWall = Date.now();
+          session.lastMono = monoNow();
+          session.hasRecord = false;
+          session.rotationDue = false;
+        }
+        emitPageView();
+      } else {
+        dropStoredSession();
+      }
+      return granted;
+    },
+    /* Withdrawal: remove the stored choice and the stored session. */
+    clearConsent: function () {
+      try { localStorage.removeItem(CFG.consentKey); } catch (e) {}
+      consentGranted = false;
+      dropStoredSession();
+    }
+  };
+  window.__analytics = api;
+
+  /* Another tab changed the stored choice: apply it here at once, so a grant
+     starts sending and a withdrawal stops it without a reload. A withdrawal
+     removes the key, so its event arrives with newValue null; the stored value
+     decides, not the event. Nothing is written here, so two tabs cannot echo
+     events to each other. */
+  window.addEventListener('storage', function (e) {
+    if (e && e.key !== null && e.key !== CFG.consentKey) return;
+    var stored = null;
+    try { stored = localStorage.getItem(CFG.consentKey); } catch (err) { return; }
+    var granted = stored === 'granted';
+    consentGranted = granted;
+    if (granted) {
+      /* Sending resumes with the next event. This load sent no page_view before
+         the grant, and it does not send one after the fact. */
+      if (!readStored()) {
+        session.id = newSessionId();
+        session.segment = 1;
+        session.lastWall = Date.now();
+        session.lastMono = monoNow();
+        session.hasRecord = false;
+      }
+      session.rotationDue = false;
+    } else {
+      /* Withdrawal: stop sending, remove the session stored for this tab, and
+         let the banner show its unset or declined state again. */
+      dropStoredSession();
+    }
+  });
+
+  /* page_view: one per document and one when a new segment opens, and only
+     after consent. The consent control calls api.consent('granted') on the
+     same load, so the first page_view of that load can still be sent.
+     emitOnce keeps the load-time event single. */
+  function emitPageView() {
+    return emitOnce('page_view', pageViewProperties());
+  }
+  if (consentGranted) emitPageView();
+
+  /* print_intent: beforeprint, once per load */
+  window.addEventListener('beforeprint', function () { api.print(); });
+
+  /* Real user activity keeps the session alive: pointer, key, wheel, touch,
+     scroll and a tab that becomes visible again. Scroll does not bubble, so
+     this listens in the capture phase, passively. */
+  (function () {
+    var activityEvents = ['pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll'];
+    for (var i = 0; i < activityEvents.length; i += 1) {
+      try { window.addEventListener(activityEvents[i], noteActivity, { passive: true, capture: true }); }
+      catch (e) { try { window.addEventListener(activityEvents[i], noteActivity, true); } catch (e2) {} }
+    }
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') noteActivity();
+    });
+  }());
+
+  /* CTA and download: one delegated listener, so dedupe lives in one place.
+     The download link fires file_download only, never cta_click. */
+  document.addEventListener('click', function (e) {
+    var a = e.target && e.target.closest ? e.target.closest('a') : null;
+    if (!a) return;
+    var href = a.getAttribute('href') || '';
+
+    if (a.hasAttribute('download')) {
+      var fileName = cleanText((href.split('/').pop() || '').split('?')[0], 120);
+      var size = parseInt(a.getAttribute('data-file-size') || '', 10);
+      var dl = {
+        file_name: fileName,
+        file_type: (fileName.split('.').pop() || '').toLowerCase(),
+        source_surface: CFG.surface
+      };
+      if (size > 0) dl.file_size_bytes = size;
+      emit('file_download', dl);
+      return;
+    }
+
+    var target = a.getAttribute('data-cta');
+    if (!target) return;
+    if (ctaDebounced(target)) return;
+    markCta(target);
+    var label = a.firstChild && a.firstChild.nodeType === 3 ? a.firstChild.textContent : a.textContent;
+    var targetPath;
+    try { targetPath = new URL(href, location.href).pathname.slice(0, 120); }
+    catch (e) { targetPath = href.split('#')[0].split('?')[0].slice(0, 120); }
+    emit('cta_click', {
+      cta_target: cleanText(target, 40),
+      cta_label: cleanText(label, 60),
+      source_surface: CFG.surface,
+      target_path: targetPath
+    });
+  }, true);
+
+}());
+</script>
 <style>
   body {
     margin: 0; background: #fbfaf7; color: #1d2528;
@@ -17,9 +533,34 @@
   h2 span { color: #5e676b; font-weight: normal; text-transform: none; letter-spacing: 0; }
   p { font-size: 20px; line-height: 1.6; margin: 0 0 12px; }
   b { color: #b4553d; }
+  /* Согласие на обезличенную статистику */
+  .consent {
+    display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center;
+    margin: 0 0 28px; padding: 14px 16px; background: #fff;
+    border: 1px solid #dcdad3; border-left: 3px solid #2f6b66;
+  }
+  .consent[hidden], .consent-reset[hidden] { display: none; }
+  .consent .consent-text { flex: 1 1 260px; margin: 0; font-size: 15px; line-height: 1.45; color: #1d2528; }
+  .consent .consent-actions { display: flex; gap: 8px; flex: 0 0 auto; }
+  .consent button {
+    font: inherit; font-size: 15px; min-height: 44px; padding: 0 16px;
+    cursor: pointer; border: 1px solid #2f6b66; background: #fff; color: #2f6b66;
+  }
+  .consent .accept { background: #2f6b66; color: #fff; }
+  .consent .accept:hover { background: #275a56; border-color: #275a56; }
+  .consent .decline:hover { background: #e4eeeb; }
+  .consent button:focus-visible { outline: 3px solid #2f6b66; outline-offset: 2px; }
+  .consent-reset { margin: 0 0 26px; font-size: 14px; color: #5e676b; }
+  .consent-reset button {
+    font: inherit; font-size: 14px; min-height: 32px; padding: 6px 0;
+    color: #2f6b66; background: none; border: 0; cursor: pointer; text-decoration: underline;
+  }
+  .consent-reset button:focus-visible { outline: 3px solid #2f6b66; outline-offset: 2px; }
+
   @media print {
     body { background: #fff; }
     main { padding: 0; }
+    .consent, .consent-reset { display: none !important; }
     p { font-size: 15pt; }
     section { break-inside: avoid; }
   }
@@ -27,8 +568,17 @@
 </head>
 <body>
 <main>
+  <div id="consent" class="consent" role="region" aria-labelledby="consent-text" hidden>
+    <p class="consent-text" id="consent-text"></p>
+    <div class="consent-actions">
+      <button type="button" class="accept" id="consent-accept">Принять</button>
+      <button type="button" class="decline" id="consent-decline">Отказаться</button>
+    </div>
+  </div>
+
   <h1>Текст выступления: вредные привычки</h1>
   <div class="meta">Примерно 5 минут. Цифры выделены, чтобы быстро найти их глазами.</div>
+  <p class="consent-reset" id="consent-withdraw" hidden><button type="button" id="consent-withdraw-btn">Отозвать согласие</button></p>
 
   <section>
     <h2>Слайд 1 · Титульный <span>· 15 сек</span></h2>
@@ -85,5 +635,62 @@
     <p>Вывод простой: вредную привычку легче не начинать, чем потом от неё избавляться. Но бросить можно в любом возрасте, и помощь можно получить бесплатно. Спасибо за внимание!</p>
   </section>
 </main>
+
+<script>
+/* Согласие на обезличенную статистику просмотров.
+   В localStorage хранится только ключ analytics_consent со значением
+   'granted' или 'denied'. Персональных данных нет. */
+(function () {
+  'use strict';
+  /* ЗАГЛУШКА: черновая формулировка. Владелец страницы её не утверждал.
+     Замените эту строку — остальной код менять не нужно. */
+  var CONSENT_TEXT = 'Собираем обезличенную статистику просмотров. Формулировка черновая, ждёт утверждения владельца.';
+  var KEY = 'analytics_consent';
+
+  var banner = document.getElementById('consent');
+  var text = document.getElementById('consent-text');
+  var accept = document.getElementById('consent-accept');
+  var decline = document.getElementById('consent-decline');
+  var reset = document.getElementById('consent-withdraw');
+  var resetBtn = document.getElementById('consent-withdraw-btn');
+  if (!banner || !text || !accept || !decline) return;
+
+  text.textContent = CONSENT_TEXT;
+
+  function stored() {
+    try { return localStorage.getItem(KEY); } catch (e) { return null; }
+  }
+  function save(state) {
+    if (window.__analytics && typeof window.__analytics.consent === 'function') {
+      window.__analytics.consent(state);
+      return;
+    }
+    try { localStorage.setItem(KEY, state); } catch (e) {}
+  }
+  function clear() {
+    if (window.__analytics && typeof window.__analytics.clearConsent === 'function') {
+      window.__analytics.clearConsent();
+      return;
+    }
+    try { localStorage.removeItem(KEY); } catch (e) {}
+  }
+  function render() {
+    var choice = stored();
+    var decided = choice === 'granted' || choice === 'denied';
+    banner.hidden = decided;
+    if (reset) reset.hidden = !decided;
+  }
+
+  /* Another tab granted or withdrew: redraw the banner here too, no reload. */
+  window.addEventListener('storage', function (e) {
+    if (e && e.key !== null && e.key !== KEY) return;
+    render();
+  });
+  accept.addEventListener('click', function () { save('granted'); render(); });
+  decline.addEventListener('click', function () { save('denied'); render(); });
+  if (resetBtn) resetBtn.addEventListener('click', function () { clear(); render(); });
+  render();
+}());
+</script>
 </body>
 </html>
