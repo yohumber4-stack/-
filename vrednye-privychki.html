@@ -319,6 +319,7 @@
   function recordEvent(name, props, sess) {
     seq += 1;
     var properties = {
+      environment: env,
       is_internal: isInternal,
       load_id: loadId,
       session_id: sess.id,
